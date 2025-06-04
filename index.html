@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Text File Display</title>
+</head>
+<body>
+  <h1>Text from file:</h1>
+  <pre id="text-output">Loading...</pre>
+
+  <script>
+    fetch('files/message.txt')
+      .then(response => {
+        if (!response.ok) throw new Error('File not found');
+        return response.text();
+      })
+      .then(text => {
+        document.getElementById('text-output').textContent = text;
+      })
+      .catch(error => {
+        document.getElementById('text-output').textContent = 'Error loading text file.';
+        console.error(error);
+      });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+Hello! This is a message loaded from a .txt file.
