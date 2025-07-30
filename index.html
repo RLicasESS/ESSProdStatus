@@ -84,39 +84,51 @@
       container.appendChild(table);
     }
   </script>
-  <h2 style="text-align: center;">ESS TESTERS</h2>
 
-  <script>
-    async function loadCSV() {
-      const response = await fetch('ESSTesters.csv');
-      const text = await response.text();
+<h2 style="text-align: center;">ESS TESTERS</h2>
 
-      const rows = text.trim().split('\n').map(row => row.split(','));
-      const table = document.createElement('table');
-      table.border = 1;
+<script>
+  async function loadCSV() {
+    const response = await fetch('ESSTesters.csv');
+    const text = await response.text();
 
-      for (let row of rows) {
+    const rows = text.trim().split('\n').map(row => row.split(','));
+    const table = document.createElement('table');
+    table.border = 1;
+    table.style.borderCollapse = 'collapse';
+    table.style.margin = '0 auto';
+    table.style.fontFamily = 'Arial, sans-serif';
 
-    	const nonEmptyCount = row.filter(cell => cell.trim() !== '').length;
-    	if (nonEmptyCount < row.length / 2) continue;  // skip if more than half are blank
+    rows.forEach((row, index) => {
+      const nonEmptyCount = row.filter(cell => cell.trim() !== '').length;
+      if (nonEmptyCount < row.length / 2) return; // skip if more than half are blank
 
+      const tr = document.createElement('tr');
 
-        const tr = document.createElement('tr');
-        for (let cell of row) {
-          const td = document.createElement('td');
-          td.textContent = cell;
-          tr.appendChild(td);
+      row.forEach(cell => {
+        const cellElement = index === 0 ? document.createElement('th') : document.createElement('td');
+        cellElement.textContent = cell;
+
+        // Apply header style
+        if (index === 0) {
+          cellElement.style.backgroundColor = '#333';
+          cellElement.style.color = 'white';
+          cellElement.style.padding = '8px';
+        } else {
+          cellElement.style.padding = '6px';
         }
-        table.appendChild(tr);
-      }
 
-      document.body.appendChild(table);
-    }
+        cellElement.style.border = '1px solid #999';
+        tr.appendChild(cellElement);
+      });
 
-    window.onload = loadCSV;
-  </script>
+      table.appendChild(tr);
+    });
 
+    document.body.appendChild(table);
+  }
 
-
+  window.onload = loadCSV;
+</script>
 </body>
 </html>
