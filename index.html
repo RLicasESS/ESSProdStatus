@@ -31,7 +31,7 @@
   <script>
     const csvFiles = ['NS-3.csv', 'NS-4.csv', 'NS-5.csv', 'CHROMA.csv'];
     let combinedRows = [];
-    let header = null;
+    let headerAdded = false;
     let filesLoaded = 0;
 
     csvFiles.forEach((file) => {
@@ -42,11 +42,19 @@
         })
         .then(text => {
           const lines = text.trim().split('\n').map(line => line.split(','));
-          if (!header) {
-            header = lines[0];
+          const filename = file.replace('.csv', '');
+
+          if (!headerAdded) {
+            // Add "Handler" column to header
+            const header = ['Handler', ...lines[0]];
             combinedRows.push(header);
+            headerAdded = true;
           }
-          combinedRows.push(...lines.slice(1));
+
+          // Add each data row with filename prefix
+          for (let i = 1; i < lines.length; i++) {
+            combinedRows.push([filename, ...lines[i]]);
+          }
         })
         .catch(err => {
           console.error(err);
@@ -76,7 +84,6 @@
       container.appendChild(table);
     }
   </script>
-
   <h2 style="text-align: center;">ESS TESTERS</h2>
 
   <script>
