@@ -25,40 +25,39 @@
 <body>
 
   <h2 style="text-align: center;">ESS HANDLERS</h2>
-  <input type="file" id="fileInput" accept=".csv" multiple>
-  <button onclick="combineCSVs()">Combine and Display</button>
-
+  
   <div id="tableContainer"></div>
 
   <script>
-    function combineCSVs() {
-      const files = document.getElementById('fileInput').files;
-      if (files.length === 0) {
-        alert("Please select CSV files first.");
-        return;
-      }
+    const csvFiles = ['NS-3.csv', 'NS-4.csv', 'NS-5.csv', 'CHROMA.csv'];
+    let combinedRows = [];
+    let header = null;
+    let filesLoaded = 0;
 
-      let combinedRows = [];
-      let header = null;
-      let filesProcessed = 0;
-
-      Array.from(files).forEach((file, idx) => {
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          const lines = e.target.result.trim().split('\n').map(line => line.split(','));
+    csvFiles.forEach((file) => {
+      fetch(file)
+        .then(response => {
+          if (!response.ok) throw new Error(`Failed to load ${file}`);
+          return response.text();
+        })
+        .then(text => {
+          const lines = text.trim().split('\n').map(line => line.split(','));
           if (!header) {
             header = lines[0];
             combinedRows.push(header);
           }
           combinedRows.push(...lines.slice(1));
-          filesProcessed++;
-          if (filesProcessed === files.length) {
+        })
+        .catch(err => {
+          console.error(err);
+        })
+        .finally(() => {
+          filesLoaded++;
+          if (filesLoaded === csvFiles.length) {
             displayTable(combinedRows);
           }
-        };
-        reader.readAsText(file);
-      });
-    }
+        });
+    });
 
     function displayTable(rows) {
       const table = document.createElement('table');
@@ -73,11 +72,10 @@
       });
 
       const container = document.getElementById('tableContainer');
-      container.innerHTML = ""; // Clear previous table
+      container.innerHTML = "";
       container.appendChild(table);
     }
   </script>
-
 
   <h2 style="text-align: center;">ESS TESTERS</h2>
 
