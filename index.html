@@ -23,60 +23,61 @@
 
 </head>
 <body>
-<h2 style="text-align: center;">ESS HANDLERS</h2>
 
-<table id="statusTable">
-  <tr>
-    <th>EQPT</th>
-    <th>STATUS</th>
-    <th>LINK</th>
-  </tr>
-</table>
+  <h2 style="text-align: center;">ESS HANDLERS</h2>
+  <input type="file" id="fileInput" accept=".csv" multiple>
+  <button onclick="combineCSVs()">Combine and Display</button>
 
-<script>
-  const modules = [
-    { name: "NS-3", file: "NS-3.log" },
-    { name: "NS-4", file: "NS-4.log" },
-    { name: "NS-5", file: "NS-5.log" },
-    { name: "CHROMA", file: "CHROMA.log" }
-  ];
+  <div id="tableContainer"></div>
 
-  const table = document.getElementById("statusTable");
+  <script>
+    function combineCSVs() {
+      const files = document.getElementById('fileInput').files;
+      if (files.length === 0) {
+        alert("Please select CSV files first.");
+        return;
+      }
 
-modules.forEach(module => {
-  const pngFile = module.file.replace(/\.log$/, ".png");
+      let combinedRows = [];
+      let header = null;
+      let filesProcessed = 0;
 
-  const logUrl = `${module.file}?t=${Date.now()}`;
-  const pngUrl = `${pngFile}?t=${Date.now()}`;
+      Array.from(files).forEach((file, idx) => {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const lines = e.target.result.trim().split('\n').map(line => line.split(','));
+          if (!header) {
+            header = lines[0];
+            combinedRows.push(header);
+          }
+          combinedRows.push(...lines.slice(1));
+          filesProcessed++;
+          if (filesProcessed === files.length) {
+            displayTable(combinedRows);
+          }
+        };
+        reader.readAsText(file);
+      });
+    }
 
-  Promise.all([
-    fetch(logUrl).then(res => {
-      if (!res.ok) throw new Error(`Status fetch failed`);
-      return res.text();
-    }),
-    fetch(pngUrl).then(res => res.ok ? pngFile : null).catch(() => null)
-  ])
-  .then(([status, imageLink]) => {
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${module.name}</td>
-      <td>${status.trim()}</td>
-      <td>${imageLink ? `<a href="${imageLink}?t=${Date.now()}" target="_blank">Error</a>` : ''}</td>
-    `;
-    table.appendChild(row);
-  })
-  .catch(error => {
-    console.error(`Error processing ${module.name}:`, error);
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${module.name}</td>
-      <td style="color:red;">Status not available yet</td>
-      <td></td>
-    `;
-    table.appendChild(row);
-  });
-});
-</script>
+    function displayTable(rows) {
+      const table = document.createElement('table');
+      rows.forEach((row, i) => {
+        const tr = document.createElement('tr');
+        row.forEach(cell => {
+          const td = document.createElement(i === 0 ? 'th' : 'td');
+          td.textContent = cell;
+          tr.appendChild(td);
+        });
+        table.appendChild(tr);
+      });
+
+      const container = document.getElementById('tableContainer');
+      container.innerHTML = ""; // Clear previous table
+      container.appendChild(table);
+    }
+  </script>
+
 
   <h2 style="text-align: center;">ESS TESTERS</h2>
 
