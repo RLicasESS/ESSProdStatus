@@ -94,14 +94,13 @@
 
     const rows = text.trim().split('\n').map(row => row.split(','));
     const table = document.createElement('table');
-    table.border = 1;
     table.style.borderCollapse = 'collapse';
     table.style.margin = '0 auto';
     table.style.fontFamily = 'Arial, sans-serif';
 
     rows.forEach((row, index) => {
       const nonEmptyCount = row.filter(cell => cell.trim() !== '').length;
-      if (nonEmptyCount < row.length / 2) return; // skip if more than half are blank
+      if (nonEmptyCount < row.length / 2) return;
 
       const tr = document.createElement('tr');
 
@@ -109,16 +108,15 @@
         const cellElement = index === 0 ? document.createElement('th') : document.createElement('td');
         cellElement.textContent = cell;
 
-        // Apply header style
+        cellElement.style.border = '1px solid #aaa';
+        cellElement.style.padding = '8px';
+
         if (index === 0) {
-          cellElement.style.backgroundColor = '#333';
+          cellElement.style.backgroundColor = '#2c3e50';
           cellElement.style.color = 'white';
-          cellElement.style.padding = '8px';
-        } else {
-          cellElement.style.padding = '6px';
+          cellElement.style.fontWeight = 'bold';
         }
 
-        cellElement.style.border = '1px solid #999';
         tr.appendChild(cellElement);
       });
 
@@ -130,5 +128,6 @@
 
   window.onload = loadCSV;
 </script>
+
 </body>
 </html>
