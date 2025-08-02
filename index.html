@@ -41,22 +41,27 @@
   
         const tr = document.createElement('tr');
   
+        const isHeader = rowIndex === 0;
+        const isTesterOrHandlerRow = !isHeader && row.some(cell => /tester|handler/i.test(cell));
+  
         row.forEach((cell, colIndex) => {
-          const isHeader = rowIndex === 0;
           const cellElement = document.createElement(isHeader ? 'th' : 'td');
           cellElement.textContent = cell;
-  
           cellElement.style.border = '1px solid #aaa';
           cellElement.style.padding = '8px';
   
-          // Background color for rows containing "Tester" or "Handler"
-          if (/tester|handler/i.test(row.join(','))) {
+          // Apply yellow background only to non-header rows containing 'Tester' or 'Handler'
+          if (isTesterOrHandlerRow) {
             cellElement.style.backgroundColor = '#fef2d0';  // light yellow
           }
   
-          // Background color for left column (first column in all rows)
+          // Apply green background to the first column (all rows)
           if (colIndex === 0) {
-            cellElement.style.backgroundColor = '#dff0d8';  // light green
+            cellElement.style.backgroundColor = isHeader ? '#2c3e50' : '#dff0d8';  // dark header or light green
+            if (isHeader) {
+              cellElement.style.color = 'white';
+              cellElement.style.fontWeight = 'bold';
+            }
           }
   
           tr.appendChild(cellElement);
@@ -70,8 +75,7 @@
   
     window.onload = loadCSV;
   </script>
-   
-
+  
 
 </body>
 </html>
