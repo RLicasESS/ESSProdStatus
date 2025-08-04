@@ -25,52 +25,51 @@
   <h2 style="text-align: center;">ESS PRODUCTION</h2>
 
   <script>
-    async function loadCSV() {
-      const response = await fetch('ESSProd.csv');
-      const text = await response.text();
-  
-      const rows = text.trim().split('\n').map(row => row.split(','));
-      const table = document.createElement('table');
-      table.style.borderCollapse = 'collapse';
-      table.style.margin = '0 auto';
-      table.style.fontFamily = 'Arial, sans-serif';
-  
-      rows.forEach((row, rowIndex) => {
-        const nonEmptyCount = row.filter(cell => cell.trim() !== '').length;
-        if (nonEmptyCount < row.length / 2) return;
-  
-        const tr = document.createElement('tr');
-  
-        const isHeader = rowIndex === 0;
-        const isTesterOrHandlerRow = !isHeader && row.some(cell => /tester|handler/i.test(cell));
-  
-        row.forEach((cell, colIndex) => {
-          const cellElement = document.createElement(isHeader ? 'th' : 'td');
-          cellElement.textContent = cell;
-          cellElement.style.border = '1px solid #aaa';
-          cellElement.style.padding = '8px';
-  
-          // Apply yellow background only to non-header rows containing 'Tester' or 'Handler'
-          if (isTesterOrHandlerRow) {
-            cellElement.style.backgroundColor = '#fef2d0';  // light yellow
-          }
-  
-          // Apply green background to the first column (all rows)
-          if (colIndex === 0) {
-            cellElement.style.backgroundColor = isHeader ? '#2c3e50' : '#dff0d8';  // dark header or light green
-            if (isHeader) {
-              cellElement.style.color = 'white';
-              cellElement.style.fontWeight = 'bold';
-            }
-          }
-  
-          tr.appendChild(cellElement);
-        });
-  
-        table.appendChild(tr);
-      });
-  
-      document.body.appendChild(table);
+async function loadCSV() {
+  const response = await fetch('ESSProd.csv?v=' + new Date().getTime());
+  const text = await response.text();
+
+  const rows = text.trim().split('\n').map(row => row.split(','));
+  const table = document.createElement('table');
+  table.style.borderCollapse = 'collapse';
+  table.style.margin = '0 auto';
+  table.style.fontFamily = 'Arial, sans-serif';
+
+  rows.forEach((row, rowIndex) => {
+    const nonEmptyCount = row.filter(cell => cell.trim() !== '').length;
+    if (nonEmptyCount < row.length / 2) return;
+
+    const tr = document.createElement('tr');
+    const isHeader = rowIndex === 0;
+    const isTesterOrHandlerRow = !isHeader && row.some(cell => /tester|handler/i.test(cell));
+
+    row.forEach((cell, colIndex) => {
+      const cellElement = document.createElement(isHeader ? 'th' : 'td');
+      cellElement.textContent = cell;
+      cellElement.style.border = '1px solid #aaa';
+      cellElement.style.padding = '8px';
+
+      if (isTesterOrHandlerRow) {
+        cellElement.style.backgroundColor = '#fef2d0';
+      }
+
+      if (colIndex === 0) {
+        cellElement.style.backgroundColor = isHeader ? '#2c3e50' : '#dff0d8';
+        if (isHeader) {
+          cellElement.style.color = 'white';
+          cellElement.style.fontWeight = 'bold';
+        }
+      }
+
+      tr.appendChild(cellElement);
+    });
+
+    table.appendChild(tr);
+  });
+
+  document.body.appendChild(table);
+}
+    
     }
   
     window.onload = loadCSV;
@@ -79,3 +78,4 @@
 
 </body>
 </html>
+
