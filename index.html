@@ -36,9 +36,14 @@
     table.style.fontFamily = 'Arial, sans-serif';
 
     rows.forEach((row, rowIndex) => {
-      const nonEmptyCount = row.filter(cell => cell.trim() !== '').length;
-      if (nonEmptyCount < row.length / 2) return;
-
+      <!-- const nonEmptyCount = row.filter(cell => cell.trim() !== '').length; -->
+      const nonEmptyCount = row.filter(cell => {
+        const c = cell.trim().toUpperCase();
+        return c !== '' && c !== 'NA';
+      }).length;
+    
+      <!-- if (nonEmptyCount < row.length / 2) return; -->
+      if (nonEmptyCount === 0) return; // skip only if all are empty or NA
       const tr = document.createElement('tr');
       const isHeader = rowIndex === 0;
       const isTesterOrHandlerRow = !isHeader && row.some(cell => /tester|handler/i.test(cell));
@@ -81,6 +86,7 @@
 
 </body>
 </html>
+
 
 
 
