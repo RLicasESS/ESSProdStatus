@@ -19,12 +19,32 @@
       color: white;
       font-weight: bold;
     }
+    a {
+      color: #007bff;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
-  <h2 style="text-align:center;">ESS PRODUCTION</h2>
+
+  <h2 style="text-align: center;">
+    <a href="https://connect.raspberrypi.com/devices/60a5a481-6e1a-43b3-8fd6-95b26e95aca0" target="_blank">
+      ESS PRODUCTION (TESTER)
+    </a>
+  </h2>
 
 <script>
+  const handlerLinks = {
+    "CHROMA": "https://connect.raspberrypi.com/devices/5fabcfc7-1bf1-445b-bf3d-b3e285895c7e",
+    "NS-3":   "https://connect.raspberrypi.com/devices/462b197a-acdb-4c97-bc15-70ab73addc46",
+    "NS-4":   "https://connect.raspberrypi.com/devices/66fa4727-e6b5-4a1a-855d-1f266270b950",
+    "NS-5":   "https://connect.raspberrypi.com/devices/468fc957-7879-440e-b1ea-b7e7dfef37f6"
+  };
+
   async function loadCSV() {
     const response = await fetch('ESSProd.csv?v=' + new Date().getTime());
     const text = await response.text();
@@ -37,7 +57,6 @@
         const c = cell.trim().toUpperCase();
         return c !== '' && c !== 'NA';
       }).length;
-
       if (nonEmptyCount === 0) return;
 
       const tr = document.createElement('tr');
@@ -46,20 +65,12 @@
 
       row.forEach((cell, colIndex) => {
         const cellElement = document.createElement(isHeader ? 'th' : 'td');
-        let text = cell.trim();
-
-        // --- MAKE ONLY THE HEADER WORD "TESTER" A CLICKABLE LINK ---
-        if (isHeader && text.toUpperCase() === "TESTER") {
-          cellElement.innerHTML = `<a href="https://connect.raspberrypi.com/devices" 
-                target="_blank" style="color:white; text-decoration:underline;">
-                TESTER</a>`;
-        } else {
-          cellElement.textContent = text;
-        }
+        let textValue = cell.trim();
 
         cellElement.style.border = '1px solid #aaa';
         cellElement.style.padding = '8px';
 
+        // COLOR RULES
         if (colIndex === 0) {
           cellElement.style.backgroundColor = isHeader ? '#2c3e50' : '#dff0d8';
           if (isHeader) {
@@ -67,10 +78,20 @@
             cellElement.style.fontWeight = 'bold';
           }
         }
-
         if (isTesterOrHandlerRow && !isHeader) {
           cellElement.style.backgroundColor = '#fef2d0';
           cellElement.style.fontWeight = 'bold';
+        }
+
+        // CLICKABLE HANDLER CELLS
+        if (handlerLinks[textValue]) {
+          const link = document.createElement('a');
+          link.href = handlerLinks[textValue];
+          link.target = "_blank";
+          link.textContent = textValue;
+          cellElement.appendChild(link);
+        } else {
+          cellElement.textContent = textValue;
         }
 
         tr.appendChild(cellElement);
@@ -81,7 +102,6 @@
 
     const oldTable = document.querySelector('table');
     if (oldTable) oldTable.remove();
-
     document.body.appendChild(table);
   }
 
