@@ -51,23 +51,7 @@
       row.forEach((cell, colIndex) => {
         const cellElement = document.createElement(isHeader ? 'th' : 'td');
 
-            // Make TESTER link clickable
-    if (!isHeader && cell.trim().toUpperCase() === "TESTER") {
-        const link = document.createElement("a");
-        link.href = "https://connect.raspberrypi.com/devices";
-        link.textContent = "TESTER";
-        link.target = "_blank";
-        link.style.color = "#0066ff";
-        link.style.fontWeight = "bold";
-        cellElement.appendChild(link);
-    } else {
         cellElement.textContent = cell;
-    }
-        
-        
-        
-        
-        <!--cellElement.textContent = cell;-->
         cellElement.style.border = '1px solid #aaa';
         cellElement.style.padding = '8px';
 
@@ -104,6 +88,7 @@
 
 </body>
 </html>
+
 
 
 
