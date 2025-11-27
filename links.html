@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>ESSProdStatus</title>
+  <title>ESS PRODUCTION</title>
   <style>
     table {
       border-collapse: collapse;
@@ -21,8 +21,8 @@
     }
     a {
       color: #007bff;
-      text-decoration: none;
       font-weight: bold;
+      text-decoration: none;
     }
     a:hover {
       text-decoration: underline;
@@ -31,20 +31,9 @@
 </head>
 <body>
 
-  <h2 style="text-align: center;">
-    <a href="https://connect.raspberrypi.com/devices/60a5a481-6e1a-43b3-8fd6-95b26e95aca0" target="_blank">
-      ESS PRODUCTION (TESTER)
-    </a>
-  </h2>
+  <h2 style="text-align: center;">ESS PRODUCTION</h2>
 
 <script>
-  const handlerLinks = {
-    "CHROMA": "https://connect.raspberrypi.com/devices/5fabcfc7-1bf1-445b-bf3d-b3e285895c7e",
-    "NS-3":   "https://connect.raspberrypi.com/devices/462b197a-acdb-4c97-bc15-70ab73addc46",
-    "NS-4":   "https://connect.raspberrypi.com/devices/66fa4727-e6b5-4a1a-855d-1f266270b950",
-    "NS-5":   "https://connect.raspberrypi.com/devices/468fc957-7879-440e-b1ea-b7e7dfef37f6"
-  };
-
   async function loadCSV() {
     const response = await fetch('ESSProd.csv?v=' + new Date().getTime());
     const text = await response.text();
@@ -57,20 +46,44 @@
         const c = cell.trim().toUpperCase();
         return c !== '' && c !== 'NA';
       }).length;
-      if (nonEmptyCount === 0) return;
+
+      if (nonEmptyCount === 0) return; 
 
       const tr = document.createElement('tr');
       const isHeader = rowIndex === 0;
       const isTesterOrHandlerRow = !isHeader && row.some(cell => /tester|handler/i.test(cell));
 
       row.forEach((cell, colIndex) => {
-        const cellElement = document.createElement(isHeader ? 'th' : 'td');
-        let textValue = cell.trim();
+        let cellContent = cell;
 
+        // CLICKABLE WORD "TESTER" (header row only)
+        if (isHeader && cell.trim().toUpperCase() === "TESTER") {
+          cellContent = `<a href="https://connect.raspberrypi.com/devices/60a5a481-6e1a-43b3-8fd6-95b26e95aca0" target="_blank">TESTER</a>`;
+        }
+
+        // CLICKABLE HANDLER ENTRIES (data rows)
+        if (!isHeader) {
+          const c = cell.trim().toUpperCase();
+
+          if (c === "CHROMA") {
+            cellContent = `<a href="https://connect.raspberrypi.com/devices/5fabcfc7-1bf1-445b-bf3d-b3e285895c7e" target="_blank">CHROMA</a>`;
+          }
+          if (c === "NS-3") {
+            cellContent = `<a href="https://connect.raspberrypi.com/devices/462b197a-acdb-4c97-bc15-70ab73addc46" target="_blank">NS-3</a>`;
+          }
+          if (c === "NS-4") {
+            cellContent = `<a href="https://connect.raspberrypi.com/devices/66fa4727-e6b5-4a1a-855d-1f266270b950" target="_blank">NS-4</a>`;
+          }
+          if (c === "NS-5") {
+            cellContent = `<a href="https://connect.raspberrypi.com/devices/468fc957-7879-440e-b1ea-b7e7dfef37f6" target="_blank">NS-5</a>`;
+          }
+        }
+
+        const cellElement = document.createElement(isHeader ? 'th' : 'td');
+        cellElement.innerHTML = cellContent;
         cellElement.style.border = '1px solid #aaa';
         cellElement.style.padding = '8px';
 
-        // COLOR RULES
         if (colIndex === 0) {
           cellElement.style.backgroundColor = isHeader ? '#2c3e50' : '#dff0d8';
           if (isHeader) {
@@ -78,20 +91,10 @@
             cellElement.style.fontWeight = 'bold';
           }
         }
+
         if (isTesterOrHandlerRow && !isHeader) {
           cellElement.style.backgroundColor = '#fef2d0';
           cellElement.style.fontWeight = 'bold';
-        }
-
-        // CLICKABLE HANDLER CELLS
-        if (handlerLinks[textValue]) {
-          const link = document.createElement('a');
-          link.href = handlerLinks[textValue];
-          link.target = "_blank";
-          link.textContent = textValue;
-          cellElement.appendChild(link);
-        } else {
-          cellElement.textContent = textValue;
         }
 
         tr.appendChild(cellElement);
