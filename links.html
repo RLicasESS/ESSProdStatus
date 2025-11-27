@@ -15,103 +15,72 @@
       text-align: left;
     }
     th {
-      background-color: #2c3e50;  /* Dark blue-gray header */
+      background-color: #2c3e50; 
       color: white;
       font-weight: bold;
     }
+    a.headerlink {
+      color: #00eaff;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    a.headerlink:hover {
+      color: #ffffff;
+      text-decoration: underline;
+    }
   </style>
 </head>
+
 <body>
   <h2 style="text-align: center;">ESS PRODUCTION</h2>
 
 <script>
-  async function loadCSV() {
-    const response = await fetch('ESSProd.csv?v=' + new Date().getTime());
-    const text = await response.text();
+async function loadCSV() {
+  const response = await fetch('ESSProd.csv?v=' + new Date().getTime());
+  const text = await response.text();
 
-    const rows = text.trim().split('\n').map(row => row.split(','));
-    const table = document.createElement('table');
-    table.style.borderCollapse = 'collapse';
-    table.style.margin = '0 auto';
-    table.style.fontFamily = 'Arial, sans-serif';
+  const rows = text.trim().split('\n').map(row => row.split(','));
+  const table = document.createElement('table');
+  table.style.borderCollapse = 'collapse';
+  table.style.margin = '0 auto';
+  table.style.fontFamily = 'Arial, sans-serif';
 
-    rows.forEach((row, rowIndex) => {
-      <!-- const nonEmptyCount = row.filter(cell => cell.trim() !== '').length; -->
-      const nonEmptyCount = row.filter(cell => {
-        const c = cell.trim().toUpperCase();
-        return c !== '' && c !== 'NA';
-      }).length;
-    
-      <!-- if (nonEmptyCount < row.length / 2) return; -->
-      if (nonEmptyCount === 0) return; // skip only if all are empty or NA
-      const tr = document.createElement('tr');
-      const isHeader = rowIndex === 0;
-      const isTesterOrHandlerRow = !isHeader && row.some(cell => /tester|handler/i.test(cell));
+  rows.forEach((row, rowIndex) => {
 
-      row.forEach((cell, colIndex) => {
-        const cellElement = document.createElement(isHeader ? 'th' : 'td');
+    const nonEmptyCount = row.filter(cell => {
+      const c = cell.trim().toUpperCase();
+      return c !== '' && c !== 'NA';
+    }).length;
+    if (nonEmptyCount === 0) return;
+
+    const tr = document.createElement('tr');
+    const isHeader = rowIndex === 0;
+    const isTesterOrHandlerRow = !isHeader && row.some(cell => /tester|handler/i.test(cell));
+
+    row.forEach((cell, colIndex) => {
+      const cellElement = document.createElement(isHeader ? 'th' : 'td');
+
+      // --- MAKE ONLY THE HEADER "TESTER" INTO A LINK ---
+      if (isHeader && cell.trim().toUpperCase() === "TESTER") {
+        const a = document.createElement("a");
+        a.href = "https://connect.raspberrypi.com/devices";
+        a.target = "_blank";
+        a.textContent = "TESTER";
+        a.className = "headerlink";
+        cellElement.appendChild(a);
+      } else {
         cellElement.textContent = cell;
-        cellElement.style.border = '1px solid #aaa';
-        cellElement.style.padding = '8px';
+      }
 
-        if (colIndex === 0) {
-          cellElement.style.backgroundColor = isHeader ? '#2c3e50' : '#dff0d8';
-          if (isHeader) {
-            cellElement.style.color = 'white';
-            cellElement.style.fontWeight = 'bold';
-          }
+      cellElement.style.border = '1px solid #aaa';
+      cellElement.style.padding = '8px';
+
+      if (colIndex === 0) {
+        cellElement.style.backgroundColor = isHeader ? '#2c3e50' : '#dff0d8';
+        if (isHeader) {
+          cellElement.style.color = 'white';
+          cellElement.style.fontWeight = 'bold';
         }
+      }
 
-        if (isTesterOrHandlerRow && !isHeader) {
-          cellElement.style.backgroundColor = '#fef2d0';
-          cellElement.style.fontWeight = 'bold';   // <-- added
-        }
-
-        tr.appendChild(cellElement);
-      });
-
-      table.appendChild(tr);
-    });
-
-    const oldTable = document.querySelector('table');
-    if (oldTable) oldTable.remove();
-    document.body.appendChild(table);
-  }
-
-  window.onload = () => {
-    loadCSV();
-    setInterval(loadCSV, 60000); // refresh every 60 seconds
-  };
-</script>
-
-<!-- LINKS ROW (BOTTOM) -->
-<div id="links-row" style="
-    width: 60%;
-    margin: 30px auto;
-    font-family: Arial, sans-serif;
-">
-  <h3 style="text-align:center; color:#2c3e50;">Useful Links</h3>
-  
-  <table style="border-collapse: collapse; width: 100%;">
-    <tr>
-      <td style="border:1px solid #aaa; padding:10px; text-align:center;">
-        <a href="https://google.com" target="_blank">Google</a>
-      </td>
-      <td style="border:1px solid #aaa; padding:10px; text-align:center;">
-        <a href="https://github.com/RLicasESS" target="_blank">GitHub</a>
-      </td>
-      <td style="border:1px solid #aaa; padding:10px; text-align:center;">
-        <a href="links.html" target="_blank">Links Page</a>
-      </td>
-    </tr>
-  </table>
-</div>
-
-
-</body>
-</html>
-
-
-
-
-
+      if
