@@ -41,8 +41,13 @@
   <a href="https://connect.raspberrypi.com/devices" target="_blank">ESS</a> PRODUCTION
 </h2>
 
-  
 <script>
+  // Detect when we are on index.html (GitHub Pages hides the filename)
+  const isIndexPage =
+    window.location.pathname.endsWith("/") ||
+    window.location.pathname.endsWith("/ESSProdStatus/") ||
+    window.location.pathname.includes("index.html");
+
   async function loadCSV() {
     const response = await fetch('ESSProd.csv?v=' + new Date().getTime());
     const text = await response.text();
@@ -64,27 +69,36 @@
 
       row.forEach((cell, colIndex) => {
         let cellContent = cell;
+        const c = cell.trim().toUpperCase();
 
-        // CLICKABLE WORD "TESTER" (header row only)
-        if (isHeader && cell.trim().toUpperCase() === "TESTER") {
-          cellContent = `<a href="https://connect.raspberrypi.com/devices/60a5a481-6e1a-43b3-8fd6-95b26e95aca0" target="_blank">TESTER</a>`;
+        // TESTER (header)
+        if (isHeader && c === "TESTER") {
+          cellContent = isIndexPage
+            ? "TESTER"
+            : `<a href="https://connect.raspberrypi.com/devices/60a5a481-6e1a-43b3-8fd6-95b26e95aca0" target="_blank">TESTER</a>`;
         }
 
-        // CLICKABLE HANDLER ENTRIES (data rows)
+        // HANDLER links (data rows)
         if (!isHeader) {
-          const c = cell.trim().toUpperCase();
-
           if (c === "CHROMA") {
-            cellContent = `<a href="https://connect.raspberrypi.com/devices/5fabcfc7-1bf1-445b-bf3d-b3e285895c7e" target="_blank">CHROMA</a>`;
+            cellContent = isIndexPage
+              ? "CHROMA"
+              : `<a href="https://connect.raspberrypi.com/devices/5fabcfc7-1bf1-445b-bf3d-b3e285895c7e" target="_blank">CHROMA</a>`;
           }
           if (c === "NS-3") {
-            cellContent = `<a href="https://connect.raspberrypi.com/devices/462b197a-acdb-4c97-bc15-70ab73addc46" target="_blank">NS-3</a>`;
+            cellContent = isIndexPage
+              ? "NS-3"
+              : `<a href="https://connect.raspberrypi.com/devices/462b197a-acdb-4c97-bc15-70ab73addc46" target="_blank">NS-3</a>`;
           }
           if (c === "NS-4") {
-            cellContent = `<a href="https://connect.raspberrypi.com/devices/66fa4727-e6b5-4a1a-855d-1f266270b950" target="_blank">NS-4</a>`;
+            cellContent = isIndexPage
+              ? "NS-4"
+              : `<a href="https://connect.raspberrypi.com/devices/66fa4727-e6b5-4a1a-855d-1f266270b950" target="_blank">NS-4</a>`;
           }
           if (c === "NS-5") {
-            cellContent = `<a href="https://connect.raspberrypi.com/devices/468fc957-7879-440e-b1ea-b7e7dfef37f6" target="_blank">NS-5</a>`;
+            cellContent = isIndexPage
+              ? "NS-5"
+              : `<a href="https://connect.raspberrypi.com/devices/468fc957-7879-440e-b1ea-b7e7dfef37f6" target="_blank">NS-5</a>`;
           }
         }
 
@@ -93,6 +107,7 @@
         cellElement.style.border = '1px solid #aaa';
         cellElement.style.padding = '8px';
 
+        // First column styling
         if (colIndex === 0) {
           cellElement.style.backgroundColor = isHeader ? '#2c3e50' : '#dff0d8';
           if (isHeader) {
@@ -101,17 +116,15 @@
           }
         }
 
+        // Tester/Handler row highlight
         if (isTesterOrHandlerRow && !isHeader) {
           cellElement.style.backgroundColor = '#fef2d0';
           cellElement.style.fontWeight = 'bold';
         }
 
-        // ---------------------------------------
-        // ⭐ STATUS COLOR SECTION (NEW)
-        // ---------------------------------------
+        // STATUS COLORS
         if (!isHeader) {
           const status = cell.trim().toLowerCase();
-
           if (status === "running") {
             cellElement.style.color = "green";
             cellElement.style.fontWeight = "bold";
@@ -129,7 +142,6 @@
             cellElement.style.fontWeight = "bold";
           }
         }
-        // ---------------------------------------
 
         tr.appendChild(cellElement);
       });
