@@ -32,7 +32,10 @@
 <script>
 
   // Detect if current page is index.html (disable links here)
-  const isIndexPage = window.location.pathname.includes("index.html");
+  const isIndexPage =
+    window.location.pathname.endsWith("/") ||
+    window.location.pathname.endsWith("/ESSProdStatus/") ||
+    window.location.pathname.includes("index.html");
 
   async function loadCSV() {
     const response = await fetch('ESSProd.csv?v=' + new Date().getTime());
@@ -169,6 +172,7 @@
 
 </body>
 </html>
+
 
 
 
