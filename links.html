@@ -106,6 +106,31 @@
           cellElement.style.fontWeight = 'bold';
         }
 
+        // ---------------------------------------
+        // ⭐ STATUS COLOR SECTION (NEW)
+        // ---------------------------------------
+        if (!isHeader) {
+          const status = cell.trim().toLowerCase();
+
+          if (status === "running") {
+            cellElement.style.color = "green";
+            cellElement.style.fontWeight = "bold";
+          }
+          if (status === "error") {
+            cellElement.style.color = "red";
+            cellElement.style.fontWeight = "bold";
+          }
+          if (status === "stopped") {
+            cellElement.style.color = "goldenrod";
+            cellElement.style.fontWeight = "bold";
+          }
+          if (status === "maint") {
+            cellElement.style.color = "blue";
+            cellElement.style.fontWeight = "bold";
+          }
+        }
+        // ---------------------------------------
+
         tr.appendChild(cellElement);
       });
 
@@ -122,6 +147,7 @@
     setInterval(loadCSV, 60000);
   };
 </script>
+
 
 </body>
 </html>
