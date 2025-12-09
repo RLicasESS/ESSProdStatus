@@ -102,6 +102,25 @@
           }
         }
 
+
+        // AP-1 → TightVNC link (from CSV)
+        if (!isIndexPage && c === "AP-1") {
+          cellContent = `<a href="vnc://AP-1">AP-1</a>`;
+        }
+        // AP-2 → TightVNC link (from CSV)
+        if (!isIndexPage && c === "AP-2") {
+          cellContent = `<a href="vnc://AP-2">AP-2</a>`;
+        }
+        // S100-1 → TightVNC link (from CSV)
+        if (!isIndexPage && c === "S100_1") {
+          cellContent = `<a href="vnc://S100-1">S100_1</a>`;
+        }
+        // S100-2 → TightVNC link (from CSV)
+        if (!isIndexPage && c === "S100_2") {
+          cellContent = `<a href="vnc://S100-2">S100_2</a>`;
+        }
+
+
         const cellElement = document.createElement(isHeader ? 'th' : 'td');
         cellElement.innerHTML = cellContent;
         cellElement.style.border = '1px solid #aaa';

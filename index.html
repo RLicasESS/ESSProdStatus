@@ -29,9 +29,9 @@
 <body>
   <h2 style="text-align: center;">ESS PRODUCTION</h2>
 
-<script>
 
-  // Detect if current page is index.html (disable links here)
+<script>
+  // Detect when we are on index.html (GitHub Pages hides the filename)
   const isIndexPage =
     window.location.pathname.endsWith("/") ||
     window.location.pathname.endsWith("/ESSProdStatus/") ||
@@ -50,7 +50,7 @@
         return c !== '' && c !== 'NA';
       }).length;
 
-      if (nonEmptyCount === 0) return;
+      if (nonEmptyCount === 0) return; 
 
       const tr = document.createElement('tr');
       const isHeader = rowIndex === 0;
@@ -60,42 +60,30 @@
         let cellContent = cell;
         const c = cell.trim().toUpperCase();
 
-        // ---------------------------------------------------------
-        // CLICKABLE WORD "TESTER" (header row only)
-        // Disable link when viewing index.html
-        // ---------------------------------------------------------
+        // TESTER (header)
         if (isHeader && c === "TESTER") {
-          if (isIndexPage) {
-            cellContent = "TESTER";
-          } else {
-            cellContent = `<a href="https://connect.raspberrypi.com/devices/60a5a481-6e1a-43b3-8fd6-95b26e95aca0" target="_blank">TESTER</a>`;
-          }
+          cellContent = isIndexPage
+            ? "TESTER"
+            : `<a href="https://connect.raspberrypi.com/devices/60a5a481-6e1a-43b3-8fd6-95b26e95aca0" target="_blank">TESTER</a>`;
         }
 
-        // ---------------------------------------------------------
-        // CLICKABLE HANDLER ENTRIES (data rows)
-        // Links disabled on index.html
-        // ---------------------------------------------------------
+        // HANDLER links (data rows)
         if (!isHeader) {
-
           if (c === "CHROMA") {
             cellContent = isIndexPage
               ? "CHROMA"
               : `<a href="https://connect.raspberrypi.com/devices/5fabcfc7-1bf1-445b-bf3d-b3e285895c7e" target="_blank">CHROMA</a>`;
           }
-
           if (c === "NS-3") {
             cellContent = isIndexPage
               ? "NS-3"
               : `<a href="https://connect.raspberrypi.com/devices/462b197a-acdb-4c97-bc15-70ab73addc46" target="_blank">NS-3</a>`;
           }
-
           if (c === "NS-4") {
             cellContent = isIndexPage
               ? "NS-4"
               : `<a href="https://connect.raspberrypi.com/devices/66fa4727-e6b5-4a1a-855d-1f266270b950" target="_blank">NS-4</a>`;
           }
-
           if (c === "NS-5") {
             cellContent = isIndexPage
               ? "NS-5"
@@ -103,15 +91,31 @@
           }
         }
 
-        // ---------------------------------------------------------
-        // CELL CREATION
-        // ---------------------------------------------------------
+
+        // AP-1 → TightVNC link (from CSV)
+        if (!isIndexPage && c === "AP-1") {
+          cellContent = `<a href="vnc://AP-1">AP-1</a>`;
+        }
+        // AP-2 → TightVNC link (from CSV)
+        if (!isIndexPage && c === "AP-2") {
+          cellContent = `<a href="vnc://AP-2">AP-2</a>`;
+        }
+        // S100-1 → TightVNC link (from CSV)
+        if (!isIndexPage && c === "S100_1") {
+          cellContent = `<a href="vnc://S100-1">S100_1</a>`;
+        }
+        // S100-2 → TightVNC link (from CSV)
+        if (!isIndexPage && c === "S100_2") {
+          cellContent = `<a href="vnc://S100-2">S100_2</a>`;
+        }
+
+
         const cellElement = document.createElement(isHeader ? 'th' : 'td');
         cellElement.innerHTML = cellContent;
         cellElement.style.border = '1px solid #aaa';
         cellElement.style.padding = '8px';
 
-        // COLUMN 0 formatting
+        // First column styling
         if (colIndex === 0) {
           cellElement.style.backgroundColor = isHeader ? '#2c3e50' : '#dff0d8';
           if (isHeader) {
@@ -120,18 +124,15 @@
           }
         }
 
-        // TESTER / HANDLER ROW highlighting
+        // Tester/Handler row highlight
         if (isTesterOrHandlerRow && !isHeader) {
           cellElement.style.backgroundColor = '#fef2d0';
           cellElement.style.fontWeight = 'bold';
         }
 
-        // ---------------------------------------------------------
-        // STATUS COLOR CODING
-        // ---------------------------------------------------------
+        // STATUS COLORS
         if (!isHeader) {
           const status = cell.trim().toLowerCase();
-
           if (status === "running") {
             cellElement.style.color = "green";
             cellElement.style.fontWeight = "bold";
@@ -149,7 +150,6 @@
             cellElement.style.fontWeight = "bold";
           }
         }
-        // ---------------------------------------------------------
 
         tr.appendChild(cellElement);
       });
@@ -166,7 +166,6 @@
     loadCSV();
     setInterval(loadCSV, 60000);
   };
-
 </script>
 
 
