@@ -61,6 +61,52 @@ async function apiPost(payload) {
   return json;
 }
 
+// ---------------- Mode handling ----------------
+
+let currentMode = "none"; // "register" | "edit" | "none"
+let editTagId = "";
+
+function setRegisterBoxTitle(text) {
+  // first child div inside registerBox is the title in your HTML
+  const titleEl = $("registerBox")?.querySelector("div");
+  if (titleEl) titleEl.textContent = text;
+}
+
+function openRegisterMode(tagValue) {
+  currentMode = "register";
+  editTagId = "";
+
+  setRegisterBoxTitle("Registering new lot?");
+  $("register").textContent = "Register";
+  $("cancelRegister").textContent = "Cancel";
+
+  // Clear fields
+  $("lot").value = "";
+  $("qty").value = "";
+  $("product").value = "";
+
+  // Keep tag as-is
+  $("tag").value = tagValue;
+
+  show($("registerBox"), true);
+}
+
+function openEditMode(foundData) {
+  currentMode = "edit";
+  editTagId = foundData.TAG_ID;
+
+  setRegisterBoxTitle("Edit Data");
+  $("register").textContent = "Save Changes";
+  $("cancelRegister").textContent = "Cancel";
+
+  $("lot").value = foundData.LOT_ID;
+  $("qty").value = foundData.LOT_QTY;
+  $("product").value = foundData.PRODUCT_NAME;
+
+  // show box
+  show($("registerBox"), true);
+}
+
 // ---------------- Core logic ----------------
 
 async function lookupTag() {
@@ -77,6 +123,7 @@ async function lookupTag() {
   if (out.found) {
     const d = out.data;
 
+    // show full tag (with leading zeros)
     $("tag").value = d.TAG_ID;
 
     setResult(`
@@ -84,16 +131,22 @@ async function lookupTag() {
       <div><span class="k">LOT ID</span>${d.LOT_ID}</div>
       <div><span class="k">LOT QTY</span>${d.LOT_QTY}</div>
       <div><span class="k">PRODUCT</span>${d.PRODUCT_NAME}</div>
+
       <div style="margin-top:12px">
+        <button id="editBtn" style="font-weight:700">Edit Data</button>
         <button id="deregBtn" style="color:#b00020;font-weight:700">
           Deregister Tag
         </button>
       </div>
     `);
 
+    $("editBtn").onclick = () => openEditMode(d);
+
     $("deregBtn").onclick = async () => {
-      if (!confirm(`Deregister tag ${d.TAG_ID}?`)) return;
+      if (!confirm(`Deregister tag ${d.TAG_ID}?\n\nThis will remove it from the Tags Table.`)) return;
+
       await apiPost({ action: "deregister", tag: d.TAG_ID });
+
       clearUI();
       setResult(
         "Tag deregistered successfully.<br><br>" +
@@ -104,14 +157,12 @@ async function lookupTag() {
     return;
   }
 
+  // Not found -> registration flow
   setResult(`Tag not found: <b>${tag}</b>`, true);
-  show($("registerBox"), true);
-  $("lot").value = "";
-  $("qty").value = "";
-  $("product").value = "";
+  openRegisterMode(tag);
 }
 
-async function registerTag() {
+async function submitRegisterOrEdit() {
   const tag = $("tag").value.trim();
   const lot = $("lot").value.trim();
   const qty = $("qty").value.trim();
@@ -122,17 +173,23 @@ async function registerTag() {
     return;
   }
 
-  await apiPost({
-    action: "register",
-    tag,
-    lot,
-    qty,
-    product,
-  });
+  if (currentMode === "register") {
+    await apiPost({ action: "register", tag, lot, qty, product });
+    show($("registerBox"), false);
+    setResult("New lot registered successfully.");
+    await lookupTag();
+    return;
+  }
 
-  show($("registerBox"), false);
-  setResult("New lot registered successfully.");
-  await lookupTag();
+  if (currentMode === "edit") {
+    await apiPost({ action: "update", tag: editTagId || tag, lot, qty, product });
+    show($("registerBox"), false);
+    setResult("Data updated successfully.");
+    await lookupTag();
+    return;
+  }
+
+  setResult("Unexpected state. Please Lookup again.", true);
 }
 
 async function viewTable() {
@@ -164,8 +221,14 @@ async function viewTable() {
 
 window.addEventListener("DOMContentLoaded", () => {
   $("lookup").onclick = () => lookupTag().catch(e => setResult(e.message, true));
-  $("register").onclick = () => registerTag().catch(e => setResult(e.message, true));
-  $("cancelRegister").onclick = () => show($("registerBox"), false);
+  $("register").onclick = () => submitRegisterOrEdit().catch(e => setResult(e.message, true));
+
+  $("cancelRegister").onclick = () => {
+    show($("registerBox"), false);
+    currentMode = "none";
+    editTagId = "";
+  };
+
   $("viewTable").onclick = () => viewTable().catch(e => setResult(e.message, true));
   $("closeTable").onclick = () => show($("tableBox"), false);
 
