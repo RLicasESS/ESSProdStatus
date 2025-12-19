@@ -3,14 +3,11 @@
 // Backend: Google Apps Script Web App
 // ==========================================
 
-// 🔒 HARD-CODED BACKEND (operator never sees this)
 const API_URL =
   "https://script.google.com/macros/s/AKfycbxIfQ2nvY-itZS2rPdYxoRF1yE6nzn4r2ZhcTI3gkLZhKSJ2RE6f9DXQemfO2s3canHWA/exec";
 
-// Optional shared secret (leave "" if not used)
-const SHARED_SECRET = ""; // e.g. "ess-tags-2025"
+const SHARED_SECRET = ""; // optional
 
-// ------------------------------------------
 function $(id) {
   return document.getElementById(id);
 }
@@ -19,22 +16,31 @@ function show(el, on = true) {
   el.style.display = on ? "" : "none";
 }
 
-function normalizeTag(tag) {
-  return String(tag || "").trim().replace(/^0+/, "");
+function clearUI() {
+  show($("result"), false);
+  show($("registerBox"), false);
+  show($("tableBox"), false);
 }
 
-// ------------------------------------------
-// API helpers
-// ------------------------------------------
+function setResult(html, danger = false) {
+  const box = $("result");
+  box.innerHTML = html;
+  box.className = danger ? "card danger" : "card";
+  show(box, true);
+}
+
+// ---------------- API helpers ----------------
+
 async function apiGet(action, params = {}) {
   const u = new URL(API_URL);
   u.searchParams.set("action", action);
   if (SHARED_SECRET) u.searchParams.set("secret", SHARED_SECRET);
+
   for (const [k, v] of Object.entries(params)) {
     u.searchParams.set(k, v);
   }
 
-  const res = await fetch(u.toString(), { method: "GET" });
+  const res = await fetch(u.toString());
   const json = await res.json();
   if (!json.ok) throw new Error(json.error || "API error");
   return json;
@@ -55,25 +61,8 @@ async function apiPost(payload) {
   return json;
 }
 
-// ------------------------------------------
-// UI helpers
-// ------------------------------------------
-function clearUI() {
-  show($("result"), false);
-  show($("registerBox"), false);
-  show($("tableBox"), false);
-}
+// ---------------- Core logic ----------------
 
-function setResult(html, danger = false) {
-  const box = $("result");
-  box.innerHTML = html;
-  box.className = danger ? "card danger" : "card";
-  show(box, true);
-}
-
-// ------------------------------------------
-// Core actions
-// ------------------------------------------
 async function lookup() {
   clearUI();
 
@@ -88,7 +77,6 @@ async function lookup() {
   if (out.found) {
     const d = out.data;
 
-    // show full tag (with leading zeros)
     $("tag").value = d.TAG_ID;
 
     setResult(`
@@ -96,7 +84,6 @@ async function lookup() {
       <div><span class="k">LOT ID</span>${d.LOT_ID}</div>
       <div><span class="k">LOT QTY</span>${d.LOT_QTY}</div>
       <div><span class="k">PRODUCT</span>${d.PRODUCT_NAME}</div>
-
       <div style="margin-top:12px">
         <button id="deregBtn" style="color:#b00020;font-weight:700">
           Deregister Tag
@@ -105,15 +92,8 @@ async function lookup() {
     `);
 
     $("deregBtn").onclick = async () => {
-      if (
-        !confirm(
-          `Deregister tag ${d.TAG_ID}?\n\nThis will remove it from the Tags Table.`
-        )
-      )
-        return;
-
+      if (!confirm(`Deregister tag ${d.TAG_ID}?`)) return;
       await apiPost({ action: "deregister", tag: d.TAG_ID });
-
       clearUI();
       setResult(
         "Tag deregistered successfully.<br><br>" +
@@ -124,10 +104,8 @@ async function lookup() {
     return;
   }
 
-  // Not found → registration flow
   setResult(`Tag not found: <b>${tag}</b>`, true);
   show($("registerBox"), true);
-
   $("lot").value = "";
   $("qty").value = "";
   $("product").value = "";
@@ -140,7 +118,7 @@ async function registerTag() {
   const product = $("product").value.trim();
 
   if (!tag || !lot || !qty || !product) {
-    setResult("All fields are required to register a new lot.", true);
+    setResult("All fields are required.", true);
     return;
   }
 
@@ -154,8 +132,6 @@ async function registerTag() {
 
   show($("registerBox"), false);
   setResult("New lot registered successfully.");
-
-  // Immediately re-lookup to show saved data
   await lookup();
 }
 
@@ -164,4 +140,36 @@ async function viewTable() {
   show($("tableBox"), true);
   $("tableStatus").textContent = "Loading…";
 
-  const out = await ap
+  const out = await apiGet("all");
+  const rows = out.rows || [];
+
+  const tbody = $("table").querySelector("tbody");
+  tbody.innerHTML = "";
+
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.TAG_ID}</td>
+      <td>${r.LOT_ID}</td>
+      <td>${r.LOT_QTY}</td>
+      <td>${r.PRODUCT_NAME}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  $("tableStatus").textContent = `Rows: ${rows.length}`;
+}
+
+// ---------------- Wire UI ----------------
+
+window.addEventListener("DOMContentLoaded", () => {
+  $("lookup").onclick = () => lookup().catch(e => setResult(e.message, true));
+  $("register").onclick = () => registerTag().catch(e => setResult(e.message, true));
+  $("cancelRegister").onclick = () => show($("registerBox"), false);
+  $("viewTable").onclick = () => viewTable().catch(e => setResult(e.message, true));
+  $("closeTable").onclick = () => show($("tableBox"), false);
+
+  $("tag").addEventListener("keydown", ev => {
+    if (ev.key === "Enter") lookup().catch(e => setResult(e.message, true));
+  });
+});
