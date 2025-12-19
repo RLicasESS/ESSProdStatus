@@ -4,7 +4,7 @@
 // ==========================================
 
 const API_URL =
-  "https://script.google.com/macros/s/AKfycbxIfQ2nvY-itZS2rPdYxoRF1yE6nzn4r2ZhcTI3gkLZhKSJ2RE6f9DXQemfO2s3canHWA/exec";
+  "https://script.google.com/macros/s/AKfycbwTkKYan_nhseBw1N15dmgIZV_xiC2Yj0T3lbuCWYQJfEgAc5QK33HlmKc8NMIAD4rJmw/exec";
 
 const SHARED_SECRET = ""; // optional
 
