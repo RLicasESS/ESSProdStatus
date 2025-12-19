@@ -52,7 +52,7 @@ async function apiPost(payload) {
 
   const res = await fetch(u.toString(), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "text/plain;charset=utf-8" }, // <-- key change
     body: JSON.stringify(payload),
   });
 
