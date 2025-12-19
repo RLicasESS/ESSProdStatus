@@ -63,7 +63,7 @@ async function apiPost(payload) {
 
 // ---------------- Core logic ----------------
 
-async function lookup() {
+async function lookupTag() {
   clearUI();
 
   const tag = $("tag").value.trim();
@@ -132,7 +132,7 @@ async function registerTag() {
 
   show($("registerBox"), false);
   setResult("New lot registered successfully.");
-  await lookup();
+  await lookupTag();
 }
 
 async function viewTable() {
@@ -163,13 +163,13 @@ async function viewTable() {
 // ---------------- Wire UI ----------------
 
 window.addEventListener("DOMContentLoaded", () => {
-  $("lookup").onclick = () => lookup().catch(e => setResult(e.message, true));
+  $("lookup").onclick = () => lookupTag().catch(e => setResult(e.message, true));
   $("register").onclick = () => registerTag().catch(e => setResult(e.message, true));
   $("cancelRegister").onclick = () => show($("registerBox"), false);
   $("viewTable").onclick = () => viewTable().catch(e => setResult(e.message, true));
   $("closeTable").onclick = () => show($("tableBox"), false);
 
   $("tag").addEventListener("keydown", ev => {
-    if (ev.key === "Enter") lookup().catch(e => setResult(e.message, true));
+    if (ev.key === "Enter") lookupTag().catch(e => setResult(e.message, true));
   });
 });
