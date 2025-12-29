@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ESSProdStatus</title>
+  <style>
+    table {
+      border-collapse: collapse;
+      width: 60%;
+      margin: 20px auto;
+      font-family: Arial, sans-serif;
+    }
+    th, td {
+      border: 1px solid #aaa;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    th {
+      background-color: #2c3e50;  /* Dark blue-gray header */
+      color: white;
+      font-weight: bold;
+    }
+    .status-running { color: green; font-weight: bold; }
+    .status-error   { color: red; font-weight: bold; }
+    .status-stopped { color: goldenrod; font-weight: bold; }
+    .status-maint   { color: blue; font-weight: bold; }
+
+  
+    /* Loading progress bar (LOADING COUNTS / TOTAL IN) */
+    .lc-wrap { display: flex; flex-direction: column; gap: 6px; }
+    .lc-num  { font-weight: 600; }
+    .prog {
+      height: 12px;
+      border: 1px solid #bbb;
+      border-radius: 8px;
+      background: #f2f2f2;
+      overflow: hidden;
+    }
+    .prog > .bar {
+      height: 100%;
+      width: 0%;
+      background: #2e7d32; /* green */
+    }
+    .lc-pct { font-size: 12px; color: #444; }
+
+
+  </style>
+</head>
+<body>
+  <h2 style="text-align: center;">ESS PRODUCTION</h2>
+
+
+<script>
+  // Detect when we are on index.html (GitHub Pages hides the filename)
+  const isIndexPage =
+    window.location.pathname.endsWith("/") ||
+    window.location.pathname.endsWith("/ESSProdStatus/") ||
+    window.location.pathname.includes("index.html");
+
+  async function loadCSV() {
+    const response = await fetch('ESSProd.csv?v=' + new Date().getTime());
+    const text = await response.text();
+
+    const rows = text.trim().split('\n').map(row => row.split(','));
+    // Map each column -> TOTAL IN (used for LOADING COUNTS progress bars)
+    const totalInByCol = {};
+    rows.forEach(r => {
+      if (!r || r.length === 0) return;
+      const label = (r[0] || "").trim().toUpperCase();
+      if (label === "TOTAL IN") {
+        for (let c = 1; c < r.length; c++) {
+          const v = parseInt((r[c] || "").toString().replace(/,/g, "").trim(), 10);
+          if (!Number.isNaN(v)) totalInByCol[c] = v;
+        }
+      }
+    });
+
+    const table = document.createElement('table');
+
+    rows.forEach((row, rowIndex) => {
+      const nonEmptyCount = row.filter(cell => {
+        const c = cell.trim().toUpperCase();
+        return c !== '' && c !== 'NA';
+      }).length;
+
+      if (nonEmptyCount === 0) return; 
+
+      const tr = document.createElement('tr');
+      const isHeader = rowIndex === 0;
+      const isTesterOrHandlerRow = !isHeader && row.some(cell => /tester|handler/i.test(cell));
+
+      row.forEach((cell, colIndex) => {
+        let cellContent = cell;
+        const c = cell.trim().toUpperCase();
+
+        // TESTER (header)
+        if (isHeader && c === "TESTER") {
+          cellContent = isIndexPage
+            ? "TESTER"
+            : `<a href="https://connect.raspberrypi.com/devices/60a5a481-6e1a-43b3-8fd6-95b26e95aca0" target="_blank">TESTER</a>`;
+        }
+
+        // HANDLER links (data rows)
+        if (!isHeader) {
+          if (c === "CHROMA") {
+            cellContent = isIndexPage
+              ? "CHROMA"
+              : `<a href="https://connect.raspberrypi.com/devices/5fabcfc7-1bf1-445b-bf3d-b3e285895c7e" target="_blank">CHROMA</a>`;
+          }
+          if (c === "NS-3") {
+            cellContent = isIndexPage
+              ? "NS-3"
+              : `<a href="https://connect.raspberrypi.com/devices/462b197a-acdb-4c97-bc15-70ab73addc46" target="_blank">NS-3</a>`;
+          }
+          if (c === "NS-4") {
+            cellContent = isIndexPage
+              ? "NS-4"
+              : `<a href="https://connect.raspberrypi.com/devices/66fa4727-e6b5-4a1a-855d-1f266270b950" target="_blank">NS-4</a>`;
+          }
+          if (c === "NS-5") {
+            cellContent = isIndexPage
+              ? "NS-5"
+              : `<a href="https://connect.raspberrypi.com/devices/468fc957-7879-440e-b1ea-b7e7dfef37f6" target="_blank">NS-5</a>`;
+          }
+        }
+
+
+        // AP-1 → TightVNC link (from CSV)
+        if (!isIndexPage && c === "AP-1") {
+          cellContent = `<a href="vnc://AP-1">AP-1</a>`;
+        }
+        // AP-2 → TightVNC link (from CSV)
+        if (!isIndexPage && c === "AP-2") {
+          cellContent = `<a href="vnc://AP-2">AP-2</a>`;
+        }
+        // S100-1 → TightVNC link (from CSV)
+        if (!isIndexPage && c === "S100_1") {
+          cellContent = `<a href="vnc://S100-1">S100_1</a>`;
+        }
+        // S100-2 → TightVNC link (from CSV)
+        if (!isIndexPage && c === "S100_2") {
+          cellContent = `<a href="vnc://S100-2">S100_2</a>`;
+        }
+
+
+        
+        // LOADING COUNTS progress bar (LOADING COUNTS / TOTAL IN)
+        const rowLabel = (row[0] || "").trim().toUpperCase();
+        if (!isHeader && rowLabel === "LOADING COUNTS" && colIndex > 0) {
+          const loading = parseInt((cell || "").toString().replace(/,/g, "").trim(), 10);
+          const totalIn = totalInByCol[colIndex];
+
+          if (!Number.isNaN(loading) && totalIn && totalIn > 0) {
+            let pct = (loading / totalIn) * 100;
+            pct = Math.max(0, Math.min(100, pct));
+
+            cellContent = `
+              <div class="lc-wrap">
+                <div class="lc-num">${loading.toLocaleString()}</div>
+                <div class="prog"><div class="bar" style="width:${pct.toFixed(1)}%"></div></div>
+                <div class="lc-pct">${pct.toFixed(1)}%</div>
+              </div>
+            `;
+          }
+        }
+
+const cellElement = document.createElement(isHeader ? 'th' : 'td');
+        cellElement.innerHTML = cellContent;
+        cellElement.style.border = '1px solid #aaa';
+        cellElement.style.padding = '8px';
+
+        // First column styling
+        if (colIndex === 0) {
+          cellElement.style.backgroundColor = isHeader ? '#2c3e50' : '#dff0d8';
+          if (isHeader) {
+            cellElement.style.color = 'white';
+            cellElement.style.fontWeight = 'bold';
+          }
+        }
+
+        // Tester/Handler row highlight
+        if (isTesterOrHandlerRow && !isHeader) {
+          cellElement.style.backgroundColor = '#fef2d0';
+          cellElement.style.fontWeight = 'bold';
+        }
+
+        // STATUS COLORS
+        if (!isHeader) {
+          const status = cell.trim().toLowerCase();
+          if (status === "running") {
+            cellElement.style.color = "green";
+            cellElement.style.fontWeight = "bold";
+          }
+          if (status === "error") {
+            cellElement.style.color = "red";
+            cellElement.style.fontWeight = "bold";
+          }
+          if (status === "stopped") {
+            cellElement.style.color = "goldenrod";
+            cellElement.style.fontWeight = "bold";
+          }
+          if (status === "maint") {
+            cellElement.style.color = "blue";
+            cellElement.style.fontWeight = "bold";
+          }
+        }
+
+        tr.appendChild(cellElement);
+      });
+
+      table.appendChild(tr);
+    });
+
+    const oldTable = document.querySelector('table');
+    if (oldTable) oldTable.remove();
+    document.body.appendChild(table);
+  }
+
+  window.onload = () => {
+    loadCSV();
+    setInterval(loadCSV, 60000);
+  };
+</script>
+
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
