@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8" />
   <title>ESS PRODUCTION</title>
   <style>
     table {
@@ -26,6 +27,17 @@
     }
     a:hover { text-decoration: underline; }
 
+    #status {
+      width: 60%;
+      margin: 10px auto;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+
     /* Loading progress bar (LOADING COUNTS / TOTAL IN) */
     .lc-wrap { display: flex; flex-direction: column; gap: 6px; }
     .lc-num  { font-weight: 600; }
@@ -44,82 +56,173 @@
     .lc-pct { font-size: 12px; color: #444; }
   </style>
 </head>
+
 <body>
+  <h2 id="pageTitle" style="text-align:center;">ESS PRODUCTION</h2>
+  <div id="status">Loading…</div>
 
-<h2 id="pageTitle" style="text-align:center;">ESS PRODUCTION</h2>
+  <script>
+    // ONE FILE:
+    // - Normal dashboard (no links): https://.../ESSProdStatus/
+    // - Links mode:                 https://.../ESSProdStatus/?links=1
+    const params = new URLSearchParams(window.location.search);
+    const showLinks = params.get("links") === "1";
 
-<script>
-  // ONE FILE:
-  // - Normal dashboard (no links): https://.../ESSProdStatus/
-  // - Links mode:                 https://.../ESSProdStatus/?links=1
-  //
-  // (Also supports links.html if you keep it: links show automatically on that filename.)
-  const page = (location.pathname.split('/').pop() || "index.html").toLowerCase();
-  const params = new URLSearchParams(location.search);
-  const showLinks = (params.get("links") === "1") || (page === "links.html");
+    // Title: only clickable in links mode
+    if (showLinks) {
+      document.getElementById("pageTitle").innerHTML =
+        `<a href="https://connect.raspberrypi.com/devices" target="_blank">ESS</a> PRODUCTION`;
+    }
 
-  // Title: only clickable in links mode
-  if (showLinks) {
-    document.getElementById("pageTitle").innerHTML =
-      `<a href="https://connect.raspberrypi.com/devices" target="_blank">ESS</a> PRODUCTION`;
-  }
+    const statusEl = document.getElementById("status");
 
-  async function loadCSV() {
-    const response = await fetch('ESSProd.csv?v=' + new Date().getTime());
-    const text = await response.text();
+    // Robust CSV URL regardless of what page name you open
+    const CSV_URL = new URL("ESSProd.csv", window.location.href).toString();
 
-    const rows = text.trim().split('\n').map(row => row.split(','));
+    async function loadCSV() {
+      try {
+        statusEl.textContent = "Loading…";
 
-    // Map each column -> TOTAL IN (used for LOADING COUNTS progress bars)
-    const totalInByCol = {};
-    rows.forEach(r => {
-      if (!r || r.length === 0) return;
-      const label = (r[0] || "").trim().toUpperCase();
-      if (label === "TOTAL IN") {
-        for (let c = 1; c < r.length; c++) {
-          const v = parseInt((r[c] || "").toString().replace(/,/g, "").trim(), 10);
-          if (!Number.isNaN(v)) totalInByCol[c] = v;
+        const response = await fetch(CSV_URL + (CSV_URL.includes("?") ? "&" : "?") + "v=" + Date.now(), { cache: "no-store" });
+
+        if (!response.ok) {
+          // Show a readable error on the page
+          statusEl.textContent = `ERROR: CSV fetch failed (${response.status} ${response.statusText}). URL: ${CSV_URL}`;
+          console.error("CSV fetch failed:", response.status, response.statusText, CSV_URL);
+          return;
         }
+
+        const text = await response.text();
+        const rows = text.trim().split('\n').map(row => row.split(','));
+
+        // Map each column -> TOTAL IN (used for LOADING COUNTS progress bars)
+        const totalInByCol = {};
+        rows.forEach(r => {
+          if (!r || r.length === 0) return;
+          const label = (r[0] || "").trim().toUpperCase();
+          if (label === "TOTAL IN") {
+            for (let c = 1; c < r.length; c++) {
+              const v = parseInt((r[c] || "").toString().replace(/,/g, "").trim(), 10);
+              if (!Number.isNaN(v)) totalInByCol[c] = v;
+            }
+          }
+        });
+
+        const table = document.createElement('table');
+
+        rows.forEach((row, rowIndex) => {
+          const nonEmptyCount = row.filter(cell => {
+            const c = (cell || "").trim().toUpperCase();
+            return c !== '' && c !== 'NA';
+          }).length;
+
+          if (nonEmptyCount === 0) return;
+
+          const tr = document.createElement('tr');
+          const isHeader = rowIndex === 0;
+          const isTesterOrHandlerRow = !isHeader && row.some(cell => /tester|handler/i.test(cell || ""));
+
+          row.forEach((cell, colIndex) => {
+            let cellContent = cell ?? "";
+            const c = (cellContent || "").trim().toUpperCase();
+
+            // TESTER header — NEVER a link
+            if (isHeader && c === "TESTER") {
+              cellContent = "TESTER";
+            }
+
+            // Handler device links (data rows only, only in links mode)
+            if (showLinks && !isHeader) {
+              if (c === "CHROMA") {
+                cellContent = `<a href="https://connect.raspberrypi.com/devices/5fabcfc7-1bf1-445b-bf3d-b3e285895c7e" target="_blank">CHROMA</a>`;
+              }
+              if (c === "NS-3") {
+                cellContent = `<a href="https://connect.raspberrypi.com/devices/462b197a-acdb-4c97-bc15-70ab73addc46" target="_blank">NS-3</a>`;
+              }
+              if (c === "NS-4") {
+                cellContent = `<a href="https://connect.raspberrypi.com/devices/66fa4727-e6b5-4a1a-855d-1f266270b950" target="_blank">NS-4</a>`;
+              }
+              if (c === "NS-5") {
+                cellContent = `<a href="https://connect.raspberrypi.com/devices/468fc957-7879-440e-b1ea-b7e7dfef37f6" target="_blank">NS-5</a>`;
+              }
+            }
+
+            // VNC links (data rows only, only in links mode)
+            if (showLinks && !isHeader && c === "AP-1")  cellContent = `<a href="vnc://AP-1">AP-1</a>`;
+            if (showLinks && !isHeader && c === "AP-2")  cellContent = `<a href="vnc://AP-2">AP-2</a>`;
+            if (showLinks && !isHeader && c === "S100_1") cellContent = `<a href="vnc://S100-1">S100_1</a>`;
+            if (showLinks && !isHeader && c === "S100_2") cellContent = `<a href="vnc://S100-2">S100_2</a>`;
+
+            // LOADING COUNTS progress bar (LOADING COUNTS / TOTAL IN)
+            const rowLabel = (row[0] || "").trim().toUpperCase();
+            if (!isHeader && rowLabel === "LOADING COUNTS" && colIndex > 0) {
+              const loading = parseInt((cell || "").toString().replace(/,/g, "").trim(), 10);
+              const totalIn = totalInByCol[colIndex];
+
+              if (!Number.isNaN(loading) && totalIn && totalIn > 0) {
+                let pct = (loading / totalIn) * 100;
+                pct = Math.max(0, Math.min(100, pct));
+
+                cellContent = `
+                  <div class="lc-wrap">
+                    <div class="lc-num">${loading.toLocaleString()}</div>
+                    <div class="prog"><div class="bar" style="width:${pct.toFixed(1)}%"></div></div>
+                    <div class="lc-pct">${pct.toFixed(1)}%</div>
+                  </div>
+                `;
+              }
+            }
+
+            const cellElement = document.createElement(isHeader ? 'th' : 'td');
+            cellElement.innerHTML = cellContent;
+            cellElement.style.border = '1px solid #aaa';
+            cellElement.style.padding = '8px';
+
+            // First column styling
+            if (colIndex === 0) {
+              cellElement.style.backgroundColor = isHeader ? '#2c3e50' : '#dff0d8';
+              if (isHeader) {
+                cellElement.style.color = 'white';
+                cellElement.style.fontWeight = 'bold';
+              }
+            }
+
+            // Tester/Handler row highlight
+            if (isTesterOrHandlerRow && !isHeader) {
+              cellElement.style.backgroundColor = '#fef2d0';
+              cellElement.style.fontWeight = 'bold';
+            }
+
+            // Status colors
+            if (!isHeader) {
+              const status = (cell || "").trim().toLowerCase();
+              if (status === "running") { cellElement.style.color = "green"; cellElement.style.fontWeight = "bold"; }
+              if (status === "error")   { cellElement.style.color = "red"; cellElement.style.fontWeight = "bold"; }
+              if (status === "stopped") { cellElement.style.color = "goldenrod"; cellElement.style.fontWeight = "bold"; }
+              if (status === "maint")   { cellElement.style.color = "blue"; cellElement.style.fontWeight = "bold"; }
+            }
+
+            tr.appendChild(cellElement);
+          });
+
+          table.appendChild(tr);
+        });
+
+        const oldTable = document.querySelector('table');
+        if (oldTable) oldTable.remove();
+        document.body.appendChild(table);
+
+        statusEl.textContent = `Loaded OK • ${new Date().toLocaleString()} • CSV: ${CSV_URL}`;
+      } catch (err) {
+        statusEl.textContent = `ERROR: ${err?.message || err}`;
+        console.error("loadCSV error:", err);
       }
+    }
+
+    window.addEventListener("load", () => {
+      loadCSV();
+      setInterval(loadCSV, 60000);
     });
-
-    const table = document.createElement('table');
-
-    rows.forEach((row, rowIndex) => {
-      const nonEmptyCount = row.filter(cell => {
-        const c = cell.trim().toUpperCase();
-        return c !== '' && c !== 'NA';
-      }).length;
-
-      if (nonEmptyCount === 0) return;
-
-      const tr = document.createElement('tr');
-      const isHeader = rowIndex === 0;
-      const isTesterOrHandlerRow = !isHeader && row.some(cell => /tester|handler/i.test(cell));
-
-      row.forEach((cell, colIndex) => {
-        let cellContent = cell;
-        const c = cell.trim().toUpperCase();
-
-        // TESTER header — NEVER a link
-        if (isHeader && c === "TESTER") {
-          cellContent = "TESTER";
-        }
-
-        // Handler device links (data rows only, and only in links mode)
-        if (showLinks && !isHeader) {
-          if (c === "CHROMA") {
-            cellContent = `<a href="https://connect.raspberrypi.com/devices/5fabcfc7-1bf1-445b-bf3d-b3e285895c7e" target="_blank">CHROMA</a>`;
-          }
-          if (c === "NS-3") {
-            cellContent = `<a href="https://connect.raspberrypi.com/devices/462b197a-acdb-4c97-bc15-70ab73addc46" target="_blank">NS-3</a>`;
-          }
-          if (c === "NS-4") {
-            cellContent = `<a href="https://connect.raspberrypi.com/devices/66fa4727-e6b5-4a1a-855d-1f266270b950" target="_blank">NS-4</a>`;
-          }
-          if (c === "NS-5") {
-            cellContent = `<a href="https://connect.raspberrypi.com/devices/468fc957-7879-440e-b1ea-b7e7dfef37f6" target="_blank">NS-5</a>`;
-          }
-        }
-
-        // VNC links (data rows only, and only in
+  </script>
+</body>
+</html>
