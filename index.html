@@ -97,6 +97,7 @@
         const totalRow = rows.find(r => (r[0] || "").trim().toUpperCase() === "TOTAL") || [];
 
 
+
         // Map each column -> TOTAL IN (used for LOADING COUNTS progress bars)
         const totalInByCol = {};
         rows.forEach(r => {
@@ -188,10 +189,10 @@
                 `;
               }
             }
-            // AUTO1 progress bar (AUTO1 / TOTAL IN)
-            if (!isHeader && rowLabel === "AUTO1" && colIndex > 0) {
+            // AUTO1 progress bar (AUTO1 / TOTAL) — display AUTO1 number only
+            if (!isHeader && (rowLabel === "AUTO1" || rowLabel === "AUTO 1") && colIndex > 0) {
               const auto1 = parseInt((cell || "").toString().replace(/,/g, "").trim(), 10);
-              const total = parseInt((totalRow[colIndex] || "").toString().replace(/,/g, "").trim(), 10);
+              const total = parseInt((totalRow[colIndex] || "").toString().replace(/,/g, "").trim(), 10); // TOTAL row
             
               if (!Number.isNaN(auto1) && !Number.isNaN(total) && total > 0) {
                 let pct = (auto1 / total) * 100;
@@ -199,13 +200,14 @@
             
                 cellContent = `
                   <div class="lc-wrap">
-                    <div class="lc-num">${auto1.toLocaleString()} / ${total.toLocaleString()}</div>
+                    <div class="lc-num">${auto1.toLocaleString()}</div>
                     <div class="prog"><div class="bar" style="width:${pct.toFixed(1)}%"></div></div>
                     <div class="lc-pct">${pct.toFixed(1)}%</div>
                   </div>
                 `;
               }
             }
+            
           
             const cellElement = document.createElement(isHeader ? 'th' : 'td');
             cellElement.innerHTML = cellContent;
