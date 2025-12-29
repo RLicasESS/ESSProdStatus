@@ -51,7 +51,7 @@
     .prog > .bar {
       height: 100%;
       width: 0%;
-      background: #2e7d32; /* green */
+      background: #2e7d32;
     }
     .lc-pct { font-size: 12px; color: #444; }
   </style>
@@ -62,21 +62,19 @@
   <div id="status">Loading…</div>
 
   <script>
-    // ONE FILE:
-    // - Normal dashboard (no links): https://.../ESSProdStatus/
-    // - Links mode:                 https://.../ESSProdStatus/?links=1
+    // Single-file mode switch:
+    // - Normal:  https://.../ESSProdStatus/
+    // - Links:   https://.../ESSProdStatus/?links=1
     const params = new URLSearchParams(window.location.search);
     const showLinks = params.get("links") === "1";
 
-    // Title: only clickable in links mode
+    // Match links.html: title has ESS link in links mode
     if (showLinks) {
       document.getElementById("pageTitle").innerHTML =
         `<a href="https://connect.raspberrypi.com/devices" target="_blank">ESS</a> PRODUCTION`;
     }
 
     const statusEl = document.getElementById("status");
-
-    // Robust CSV URL regardless of what page name you open
     const CSV_URL = new URL("ESSProd.csv", window.location.href).toString();
 
     async function loadCSV() {
@@ -114,47 +112,63 @@
 
         rows.forEach((row, rowIndex) => {
           const nonEmptyCount = row.filter(cell => {
-            const c = (cell || "").trim().toUpperCase();
-            return c !== '' && c !== 'NA';
+            const cc = (cell || "").trim().toUpperCase();
+            return cc !== '' && cc !== 'NA';
           }).length;
 
           if (nonEmptyCount === 0) return;
 
           const tr = document.createElement('tr');
-          const isHeader = rowIndex === 0;
+          const isHeader = rowIndex === 0; // keep your existing behavior
           const isTesterOrHandlerRow = !isHeader && row.some(cell => /tester|handler/i.test(cell || ""));
 
           row.forEach((cell, colIndex) => {
             let cellContent = cell ?? "";
             const c = (cellContent || "").trim().toUpperCase();
 
-            // Top header TESTER — NEVER a link
-            if (isHeader && c === "TESTER") {
-              cellContent = "TESTER";
-            }
-
             const rowLabel = (row[0] || "").trim().toUpperCase();
-            const val = (cellContent || "").trim();
 
-            // TESTER row: make every tester cell a VNC link (links mode only)
-            if (showLinks && !isHeader && rowLabel === "TESTER" && colIndex > 0) {
-              const v = val.toUpperCase();
-              if (v === "AP-1")   cellContent = `<a href="vnc://AP-1">AP-1</a>`;
-              if (v === "AP-2")   cellContent = `<a href="vnc://AP-2">AP-2</a>`;
-              if (v === "S100_1" || v === "S100-1") cellContent = `<a href="vnc://S100-1">${val}</a>`;
-              if (v === "S100_2" || v === "S100-2") cellContent = `<a href="vnc://S100-2">${val}</a>`;
+            // === MATCH links.html for TESTER header cell ===
+            // In links.html: TESTER header becomes a link only in links mode. :contentReference[oaicite:3]{index=3}
+            if (isHeader && c === "TESTER") {
+              cellContent = showLinks
+                ? `<a href="https://connect.raspberrypi.com/devices/60a5a481-6e1a-43b3-8fd6-95b26e95aca0" target="_blank">TESTER</a>`
+                : "TESTER";
             }
 
-            // HANDLER row: make every handler cell a link (links mode only)
-            if (showLinks && !isHeader && rowLabel === "HANDLER" && colIndex > 0) {
-              const v = val.toUpperCase();
-              if (v === "CHROMA") cellContent = `<a href="https://connect.raspberrypi.com/devices/5fabcfc7-1bf1-445b-bf3d-b3e285895c7e" target="_blank">CHROMA</a>`;
-              if (v === "NS-3")   cellContent = `<a href="https://connect.raspberrypi.com/devices/462b197a-acdb-4c97-bc15-70ab73addc46" target="_blank">NS-3</a>`;
-              if (v === "NS-4")   cellContent = `<a href="https://connect.raspberrypi.com/devices/66fa4727-e6b5-4a1a-855d-1f266270b950" target="_blank">NS-4</a>`;
-              if (v === "NS-5")   cellContent = `<a href="https://connect.raspberrypi.com/devices/468fc957-7879-440e-b1ea-b7e7dfef37f6" target="_blank">NS-5</a>`;
+            // === MATCH links.html for HANDLER links (data rows only) ===
+            // In links.html, CHROMA/NS-* are linked only when not index (i.e. links mode), and only in non-header rows. :contentReference[oaicite:4]{index=4}
+            if (!isHeader) {
+              if (c === "CHROMA") {
+                cellContent = showLinks
+                  ? `<a href="https://connect.raspberrypi.com/devices/5fabcfc7-1bf1-445b-bf3d-b3e285895c7e" target="_blank">CHROMA</a>`
+                  : "CHROMA";
+              }
+              if (c === "NS-3") {
+                cellContent = showLinks
+                  ? `<a href="https://connect.raspberrypi.com/devices/462b197a-acdb-4c97-bc15-70ab73addc46" target="_blank">NS-3</a>`
+                  : "NS-3";
+              }
+              if (c === "NS-4") {
+                cellContent = showLinks
+                  ? `<a href="https://connect.raspberrypi.com/devices/66fa4727-e6b5-4a1a-855d-1f266270b950" target="_blank">NS-4</a>`
+                  : "NS-4";
+              }
+              if (c === "NS-5") {
+                cellContent = showLinks
+                  ? `<a href="https://connect.raspberrypi.com/devices/468fc957-7879-440e-b1ea-b7e7dfef37f6" target="_blank">NS-5</a>`
+                  : "NS-5";
+              }
             }
 
-            // LOADING COUNTS progress bar (LOADING COUNTS / TOTAL IN)
+            // === MATCH links.html for AP/S100 VNC links ===
+            // IMPORTANT: links.html does NOT check isHeader here, so links can appear in the header row too. :contentReference[oaicite:5]{index=5}
+            if (showLinks && c === "AP-1")   cellContent = `<a href="vnc://AP-1">AP-1</a>`;
+            if (showLinks && c === "AP-2")   cellContent = `<a href="vnc://AP-2">AP-2</a>`;
+            if (showLinks && c === "S100_1") cellContent = `<a href="vnc://S100-1">S100_1</a>`;
+            if (showLinks && c === "S100_2") cellContent = `<a href="vnc://S100-2">S100_2</a>`;
+
+            // === Progress bar ===
             if (!isHeader && rowLabel === "LOADING COUNTS" && colIndex > 0) {
               const loading = parseInt((cell || "").toString().replace(/,/g, "").trim(), 10);
               const totalIn = totalInByCol[colIndex];
@@ -193,7 +207,7 @@
               cellElement.style.fontWeight = 'bold';
             }
 
-            // Status colors
+            // STATUS COLORS
             if (!isHeader) {
               const status = (cell || "").trim().toLowerCase();
               if (status === "running") { cellElement.style.color = "green"; cellElement.style.fontWeight = "bold"; }
@@ -212,7 +226,7 @@
         if (oldTable) oldTable.remove();
         document.body.appendChild(table);
 
-        statusEl.textContent = `Loaded OK • ${new Date().toLocaleString()} • CSV: ${CSV_URL}`;
+        statusEl.textContent = `Loaded OK • ${new Date().toLocaleString()} • CSV: ${CSV_URL} • links=${showLinks ? "ON" : "OFF"}`;
       } catch (err) {
         statusEl.textContent = `ERROR: ${err?.message || err}`;
         console.error("loadCSV error:", err);
