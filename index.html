@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ESS PRODUCTION</title>
+  <style>
+    table {
+      border-collapse: collapse;
+      width: 60%;
+      margin: 20px auto;
+      font-family: Arial, sans-serif;
+    }
+    th, td {
+      border: 1px solid #aaa;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    th {
+      background-color: #2c3e50;
+      color: white;
+      font-weight: bold;
+    }
+    a {
+      color: #007bff;
+      font-weight: bold;
+      text-decoration: none;
+    }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<h2 id="pageTitle" style="text-align:center;">ESS PRODUCTION</h2>
+
+<script>
+  // ONE FILE behavior:
+  // - Normal dashboard: NO links
+  // - Links mode: add ?links=1  (ex: https://.../ESSProdStatus/?links=1)
+  const params = new URLSearchParams(window.location.search);
+  const showLinks = params.get("links") === "1";
+
+  // Title: only clickable in links mode
+  if (showLinks) {
+    document.getElementById("pageTitle").innerHTML =
+      `<a href="https://connect.raspberrypi.com/devices" target="_blank">ESS</a> PRODUCTION`;
+  }
+
+  async function loadCSV() {
+    const response = await fetch('ESSProd.csv?v=' + new Date().getTime());
+    const text = await response.text();
+
+    const rows = text.trim().split('\n').map(row => row.split(','));
+    const table = document.createElement('table');
+
+    rows.forEach((row, rowIndex) => {
+      const nonEmptyCount = row.filter(cell => {
+        const c = cell.trim().toUpperCase();
+        return c !== '' && c !== 'NA';
+      }).length;
+
+      if (nonEmptyCount === 0) return;
+
+      const tr = document.createElement('tr');
+      const isHeader = rowIndex === 0;
+      const isTesterOrHandlerRow = !isHeader && row.some(cell => /tester|handler/i.test(cell));
+
+      row.forEach((cell, colIndex) => {
+        let cellContent = cell;
+        const c = cell.trim().toUpperCase();
+
+        // TESTER header — NEVER a link
+        if (isHeader && c === "TESTER") {
+          cellContent = "TESTER";
+        }
+
+        // HANDLER links (data rows only)
+        if (!isHeader) {
+          if (c === "CHROMA") {
+            cellContent = showLinks
+              ? `<a href="https://connect.raspberrypi.com/devices/5fabcfc7-1bf1-445b-bf3d-b3e285895c7e" target="_blank">CHROMA</a>`
+              : "CHROMA";
+          }
+          if (c === "NS-3") {
+            cellContent = showLinks
+              ? `<a href="https://connect.raspberrypi.com/devices/462b197a-acdb-4c97-bc15-70ab73addc46" target="_blank">NS-3</a>`
+              : "NS-3";
+          }
+          if (c === "NS-4") {
+            cellContent = showLinks
+              ? `<a href="https://connect.raspberrypi.com/devices/66fa4727-e6b5-4a1a-855d-1f266270b950" target="_blank">NS-4</a>`
+              : "NS-4";
+          }
+          if (c === "NS-5") {
+            cellContent = showLinks
+              ? `<a href="https://connect.raspberrypi.com/devices/468fc957-7879-440e-b1ea-b7e7dfef37f6" target="_blank">NS-5</a>`
+              : "NS-5";
+          }
+        }
+
+        // VNC links — data rows only, and only in links mode
+        if (showLinks && !isHeader && c === "AP-1") {
+          cellContent = `<a href="vnc://AP-1">AP-1</a>`;
+        }
+        if (showLinks && !isHeader && c === "AP-2") {
+          cellContent = `<a href="vnc://AP-2">AP-2</a>`;
+        }
+        if (showLinks && !isHeader && c === "S100_1") {
+          cellContent = `<a href="vnc://S100-1">S100_1</a>`;
+        }
+        if (showLinks && !isHeader && c === "S100_2") {
+          cellContent = `<a href="vnc://S100-2">S100_2</a>`;
+        }
+
+        const cellElement = document.createElement(isHeader ? 'th' : 'td');
+        cellElement.innerHTML = cellContent;
+        cellElement.style.border = '1px solid #aaa';
+        cellElement.style.padding = '8px';
+
+        // First column styling
+        if (colIndex === 0) {
+          cellElement.style.backgroundColor = isHeader ? '#2c3e50' : '#dff0d8';
+          if (isHeader) {
+            cellElement.style.color = 'white';
+            cellElement.style.fontWeight = 'bold';
+          }
+        }
+
+        // Tester/Handler row highlight
+        if (isTesterOrHandlerRow && !isHeader) {
+          cellElement.style.backgroundColor = '#fef2d0';
+          cellElement.style.fontWeight = 'bold';
+        }
+
+        // STATUS COLORS
+        if (!isHeader) {
+          const status = cell.trim().toLowerCase();
+          if (status === "running") { cellElement.style.color = "green"; cellElement.style.fontWeight = "bold"; }
+          if (status === "error")   { cellElement.style.color = "red"; cellElement.style.fontWeight = "bold"; }
+          if (status === "stopped") { cellElement.style.color = "goldenrod"; cellElement.style.fontWeight = "bold"; }
+          if (status === "maint")   { cellElement.style.color = "blue"; cellElement.style.fontWeight = "bold"; }
+        }
+
+        tr.appendChild(cellElement);
+      });
+
+      table.appendChild(tr);
+    });
+
+    const oldTable = document.querySelector('table');
+    if (oldTable) oldTable.remove();
+    document.body.appendChild(table);
+  }
+
+  window.onload = () => {
+    loadCSV();
+    setInterval(loadCSV, 60000);
+  };
+</script>
+
+</body>
+</html>
