@@ -83,10 +83,12 @@
       try {
         statusEl.textContent = "Loading…";
 
-        const response = await fetch(CSV_URL + (CSV_URL.includes("?") ? "&" : "?") + "v=" + Date.now(), { cache: "no-store" });
+        const response = await fetch(
+          CSV_URL + (CSV_URL.includes("?") ? "&" : "?") + "v=" + Date.now(),
+          { cache: "no-store" }
+        );
 
         if (!response.ok) {
-          // Show a readable error on the page
           statusEl.textContent = `ERROR: CSV fetch failed (${response.status} ${response.statusText}). URL: ${CSV_URL}`;
           console.error("CSV fetch failed:", response.status, response.statusText, CSV_URL);
           return;
@@ -126,35 +128,33 @@
             let cellContent = cell ?? "";
             const c = (cellContent || "").trim().toUpperCase();
 
-            // TESTER header — NEVER a link
+            // Top header TESTER — NEVER a link
             if (isHeader && c === "TESTER") {
               cellContent = "TESTER";
             }
 
-            // Handler device links (data rows only, only in links mode)
-            if (showLinks && !isHeader) {
-              if (c === "CHROMA") {
-                cellContent = `<a href="https://connect.raspberrypi.com/devices/5fabcfc7-1bf1-445b-bf3d-b3e285895c7e" target="_blank">CHROMA</a>`;
-              }
-              if (c === "NS-3") {
-                cellContent = `<a href="https://connect.raspberrypi.com/devices/462b197a-acdb-4c97-bc15-70ab73addc46" target="_blank">NS-3</a>`;
-              }
-              if (c === "NS-4") {
-                cellContent = `<a href="https://connect.raspberrypi.com/devices/66fa4727-e6b5-4a1a-855d-1f266270b950" target="_blank">NS-4</a>`;
-              }
-              if (c === "NS-5") {
-                cellContent = `<a href="https://connect.raspberrypi.com/devices/468fc957-7879-440e-b1ea-b7e7dfef37f6" target="_blank">NS-5</a>`;
-              }
+            const rowLabel = (row[0] || "").trim().toUpperCase();
+            const val = (cellContent || "").trim();
+
+            // TESTER row: make every tester cell a VNC link (links mode only)
+            if (showLinks && !isHeader && rowLabel === "TESTER" && colIndex > 0) {
+              const v = val.toUpperCase();
+              if (v === "AP-1")   cellContent = `<a href="vnc://AP-1">AP-1</a>`;
+              if (v === "AP-2")   cellContent = `<a href="vnc://AP-2">AP-2</a>`;
+              if (v === "S100_1" || v === "S100-1") cellContent = `<a href="vnc://S100-1">${val}</a>`;
+              if (v === "S100_2" || v === "S100-2") cellContent = `<a href="vnc://S100-2">${val}</a>`;
             }
 
-            // VNC links (data rows only, only in links mode)
-            if (showLinks && !isHeader && c === "AP-1")  cellContent = `<a href="vnc://AP-1">AP-1</a>`;
-            if (showLinks && !isHeader && c === "AP-2")  cellContent = `<a href="vnc://AP-2">AP-2</a>`;
-            if (showLinks && !isHeader && c === "S100_1") cellContent = `<a href="vnc://S100-1">S100_1</a>`;
-            if (showLinks && !isHeader && c === "S100_2") cellContent = `<a href="vnc://S100-2">S100_2</a>`;
+            // HANDLER row: make every handler cell a link (links mode only)
+            if (showLinks && !isHeader && rowLabel === "HANDLER" && colIndex > 0) {
+              const v = val.toUpperCase();
+              if (v === "CHROMA") cellContent = `<a href="https://connect.raspberrypi.com/devices/5fabcfc7-1bf1-445b-bf3d-b3e285895c7e" target="_blank">CHROMA</a>`;
+              if (v === "NS-3")   cellContent = `<a href="https://connect.raspberrypi.com/devices/462b197a-acdb-4c97-bc15-70ab73addc46" target="_blank">NS-3</a>`;
+              if (v === "NS-4")   cellContent = `<a href="https://connect.raspberrypi.com/devices/66fa4727-e6b5-4a1a-855d-1f266270b950" target="_blank">NS-4</a>`;
+              if (v === "NS-5")   cellContent = `<a href="https://connect.raspberrypi.com/devices/468fc957-7879-440e-b1ea-b7e7dfef37f6" target="_blank">NS-5</a>`;
+            }
 
             // LOADING COUNTS progress bar (LOADING COUNTS / TOTAL IN)
-            const rowLabel = (row[0] || "").trim().toUpperCase();
             if (!isHeader && rowLabel === "LOADING COUNTS" && colIndex > 0) {
               const loading = parseInt((cell || "").toString().replace(/,/g, "").trim(), 10);
               const totalIn = totalInByCol[colIndex];
