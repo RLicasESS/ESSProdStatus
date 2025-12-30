@@ -86,6 +86,13 @@
       return Number.isNaN(v) ? null : v;
     }
 
+    function sumAutosForCol(rows, colIndex) {
+      const a1 = rows.find(r => norm(r[0]) === "AUTO1") || [];
+      const a2 = rows.find(r => norm(r[0]) === "AUTO2") || [];
+      const a3 = rows.find(r => norm(r[0]) === "AUTO3") || [];
+      return (toInt(a1[colIndex]) || 0) + (toInt(a2[colIndex]) || 0) + (toInt(a3[colIndex]) || 0);
+    }
+
     function parseCSV(text) {
       const lines = text.replace(/\r/g, "").trim().split(/\n/);
       if (!lines.length) return [];
@@ -157,6 +164,15 @@
             }
           }
         }
+
+        // ===== rows is FINAL now (after freeze) =====
+        const autoSumByCol = {};
+        const maxCols = (rows[0] || []).length;
+        for (let c = 1; c < maxCols; c++) {
+          autoSumByCol[c] = sumAutosForCol(rows, c);
+        }
+        // ===========================================
+ 
 
         // Build table
         const table = document.createElement("table");
@@ -275,7 +291,42 @@
               if (st === "stopped") { cellEl.style.color = "goldenrod"; cellEl.style.fontWeight = "bold"; }
               if (st === "maint")   { cellEl.style.color = "blue"; cellEl.style.fontWeight = "bold"; }
             }
-
+            
+            // ===== Number checks (make cell red if violated) =====
+            if (!isHeader && colIndex > 0) {
+              const autoSum = autoSumByCol[colIndex] || 0;
+            
+              if (rowLabel === "LOADING COUNTS") {
+                const loading = toInt(cell);
+                if (loading !== null && loading < autoSum) {
+                  cellEl.style.backgroundColor = "#ffd6d6";
+                  cellEl.style.fontWeight = "bold";
+                  cellEl.style.color = "red";
+                }
+              }
+            
+              if (rowLabel === "TOTAL") {
+                const total = toInt(cell);
+                if (total !== null && total < autoSum) {
+                  cellEl.style.backgroundColor = "#ffd6d6";
+                  cellEl.style.fontWeight = "bold";
+                  cellEl.style.color = "red";
+                }
+              }
+            
+              if (rowLabel === "TOTAL IN") {
+                const totalIn = toInt(cell);
+                // loading counts value in same column
+                const loadingRow = rows.find(r => norm(r[0]) === "LOADING COUNTS") || [];
+                const loading = toInt(loadingRow[colIndex]);
+                if (totalIn !== null && loading !== null && totalIn < loading) {
+                  cellEl.style.backgroundColor = "#ffd6d6";
+                  cellEl.style.fontWeight = "bold";
+                  cellEl.style.color = "red";
+                }
+              }
+            }
+            
             tr.appendChild(cellEl);
           });
 
