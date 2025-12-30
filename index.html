@@ -27,18 +27,7 @@
     }
     a:hover { text-decoration: underline; }
 
-    #status {
-      width: 60%;
-      margin: 10px auto;
-      font-family: Arial, sans-serif;
-      font-size: 14px;
-      padding: 8px 10px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      background: #fafafa;
-    }
-
-    /* Loading progress bar (LOADING COUNTS / TOTAL IN) */
+    /* Progress bars */
     .lc-wrap { display: flex; flex-direction: column; gap: 6px; }
     .lc-num  { font-weight: 600; }
     .prog {
@@ -59,88 +48,113 @@
 
 <body>
   <h2 id="pageTitle" style="text-align:center;">ESS PRODUCTION</h2>
-  <div id="status">Loading…</div>
 
   <script>
-    // Single-file mode switch:
-    // - Normal:  https://.../ESSProdStatus/
-    // - Links:   https://.../ESSProdStatus/?links=1
+    // Links mode:
+    //   normal:   https://.../ESSProdStatus/
+    //   links on: https://.../ESSProdStatus/?links=1
     const params = new URLSearchParams(window.location.search);
     const showLinks = params.get("links") === "1";
 
-    // Match links.html: title has ESS link in links mode
     if (showLinks) {
       document.getElementById("pageTitle").innerHTML =
         `<a href="https://connect.raspberrypi.com/devices" target="_blank">ESS</a> PRODUCTION`;
     }
 
-    const statusEl = document.getElementById("status");
     const CSV_URL = new URL("ESSProd.csv", window.location.href).toString();
+
+    // Cache of previous rows (to freeze numbers when STATUS=error)
+    let prevRowsByLabel = null; // { LABEL: rowArray }
+
+    function normLabel(s) {
+      return (s || "").toString().trim().toUpperCase();
+    }
+    function toInt(s) {
+      const v = parseInt((s || "").toString().replace(/,/g, "").trim(), 10);
+      return Number.isNaN(v) ? null : v;
+    }
 
     async function loadCSV() {
       try {
-        statusEl.textContent = "Loading…";
-
         const response = await fetch(
           CSV_URL + (CSV_URL.includes("?") ? "&" : "?") + "v=" + Date.now(),
           { cache: "no-store" }
         );
-
-        if (!response.ok) {
-          statusEl.textContent = `ERROR: CSV fetch failed (${response.status} ${response.statusText}). URL: ${CSV_URL}`;
-          console.error("CSV fetch failed:", response.status, response.statusText, CSV_URL);
-          return;
-        }
+        if (!response.ok) return; // silent fail (no status line)
 
         const text = await response.text();
-        const rows = text.trim().split('\n').map(row => row.split(','));
-        const totalRow = rows.find(r => (r[0] || "").trim().toUpperCase() === "TOTAL") || [];
+        const rows = text.trim().split('\n').map(r => r.split('\t').length > 1 ? r.split('\t') : r.split(','));
 
+        // Build STATUS per column
+        const statusRow = rows.find(r => normLabel(r[0]) === "STATUS") || [];
+        const statusByCol = {};
+        for (let c = 1; c < statusRow.length; c++) {
+          statusByCol[c] = (statusRow[c] || "").toString().trim().toLowerCase();
+        }
 
-
-        // Map each column -> TOTAL IN (used for LOADING COUNTS progress bars)
+        // Build TOTAL IN per column (for LOADING COUNTS progress)
+        const totalInRow = rows.find(r => normLabel(r[0]) === "TOTAL IN") || [];
         const totalInByCol = {};
-        rows.forEach(r => {
-          if (!r || r.length === 0) return;
-          const label = (r[0] || "").trim().toUpperCase();
-          if (label === "TOTAL IN") {
+        for (let c = 1; c < totalInRow.length; c++) {
+          const v = toInt(totalInRow[c]);
+          if (v !== null) totalInByCol[c] = v;
+        }
+
+        // Build TOTAL row array (for AUTO1 / TOTAL progress)
+        const totalRow = rows.find(r => normLabel(r[0]) === "TOTAL") || [];
+
+        // Freeze numeric rows when STATUS for that column is error
+        // (Keeps last known numbers on the page while tester is in ERROR.)
+        const freezeLabels = new Set(["TOTAL IN", "LOADING COUNTS", "TOTAL", "AUTO1", "AUTO2", "AUTO3"]);
+
+        if (prevRowsByLabel) {
+          for (const r of rows) {
+            const label = normLabel(r[0]);
+            if (!freezeLabels.has(label)) continue;
+
+            const prevRow = prevRowsByLabel[label];
+            if (!prevRow) continue;
+
             for (let c = 1; c < r.length; c++) {
-              const v = parseInt((r[c] || "").toString().replace(/,/g, "").trim(), 10);
-              if (!Number.isNaN(v)) totalInByCol[c] = v;
+              if ((statusByCol[c] || "") === "error") {
+                const prevVal = prevRow[c];
+                if (prevVal !== undefined && String(prevVal).trim() !== "") {
+                  r[c] = prevVal; // freeze cell
+                }
+              }
             }
           }
-        });
+        }
 
+        // Build table
         const table = document.createElement('table');
 
         rows.forEach((row, rowIndex) => {
           const nonEmptyCount = row.filter(cell => {
-            const cc = (cell || "").trim().toUpperCase();
+            const cc = (cell || "").toString().trim().toUpperCase();
             return cc !== '' && cc !== 'NA';
           }).length;
-
           if (nonEmptyCount === 0) return;
 
           const tr = document.createElement('tr');
-          const isHeader = rowIndex === 0; // keep your existing behavior
-          const isTesterOrHandlerRow = !isHeader && row.some(cell => /tester|handler/i.test(cell || ""));
+          const isHeader = rowIndex === 0;
+          const isTesterOrHandlerRow = !isHeader && row.some(cell => /tester|handler/i.test((cell || "").toString()));
 
           row.forEach((cell, colIndex) => {
-            let cellContent = cell ?? "";
-            const c = (cellContent || "").trim().toUpperCase();
+            let cellContent = (cell ?? "").toString();
+            const c = cellContent.trim().toUpperCase();
+            const rowLabel = normLabel(row[0]);
+            const val = cellContent.trim();
 
-            const rowLabel = (row[0] || "").trim().toUpperCase();
-
-            // === MATCH links.html for TESTER header cell ===
-            // In links.html: TESTER header becomes a link only in links mode. :contentReference[oaicite:3]{index=3}
+            // Match your links.html behavior:
+            // TESTER header becomes a link in links mode
             if (isHeader && c === "TESTER") {
               cellContent = showLinks
                 ? `<a href="https://connect.raspberrypi.com/devices/60a5a481-6e1a-43b3-8fd6-95b26e95aca0" target="_blank">TESTER</a>`
                 : "TESTER";
             }
 
-            // === MATCH links.html for HANDLER links (data rows only) ===
-            // In links.html, CHROMA/NS-* are linked only when not index (i.e. links mode), and only in non-header rows. :contentReference[oaicite:4]{index=4}
+            // Handler links (non-header rows only)
             if (!isHeader) {
               if (c === "CHROMA") {
                 cellContent = showLinks
@@ -164,22 +178,19 @@
               }
             }
 
-            // === MATCH links.html for AP/S100 VNC links ===
-            // IMPORTANT: links.html does NOT check isHeader here, so links can appear in the header row too. :contentReference[oaicite:5]{index=5}
+            // VNC links (links mode; same as links.html — no isHeader gate)
             if (showLinks && c === "AP-1")   cellContent = `<a href="vnc://AP-1">AP-1</a>`;
             if (showLinks && c === "AP-2")   cellContent = `<a href="vnc://AP-2">AP-2</a>`;
             if (showLinks && c === "S100_1") cellContent = `<a href="vnc://S100-1">S100_1</a>`;
             if (showLinks && c === "S100_2") cellContent = `<a href="vnc://S100-2">S100_2</a>`;
 
-            // === Progress bar ===
+            // LOADING COUNTS progress (LOADING COUNTS / TOTAL IN)
             if (!isHeader && rowLabel === "LOADING COUNTS" && colIndex > 0) {
-              const loading = parseInt((cell || "").toString().replace(/,/g, "").trim(), 10);
+              const loading = toInt(cell);
               const totalIn = totalInByCol[colIndex];
-
-              if (!Number.isNaN(loading) && totalIn && totalIn > 0) {
+              if (loading !== null && totalIn && totalIn > 0) {
                 let pct = (loading / totalIn) * 100;
                 pct = Math.max(0, Math.min(100, pct));
-
                 cellContent = `
                   <div class="lc-wrap">
                     <div class="lc-num">${loading.toLocaleString()}</div>
@@ -189,15 +200,14 @@
                 `;
               }
             }
-            // AUTO1 progress bar (AUTO1 / TOTAL) — display AUTO1 number only
+
+            // AUTO1 progress (AUTO1 / TOTAL) — display AUTO1 number only
             if (!isHeader && (rowLabel === "AUTO1" || rowLabel === "AUTO 1") && colIndex > 0) {
-              const auto1 = parseInt((cell || "").toString().replace(/,/g, "").trim(), 10);
-              const total = parseInt((totalRow[colIndex] || "").toString().replace(/,/g, "").trim(), 10); // TOTAL row
-            
-              if (!Number.isNaN(auto1) && !Number.isNaN(total) && total > 0) {
+              const auto1 = toInt(cell);
+              const total = toInt(totalRow[colIndex]); // TOTAL row, same column
+              if (auto1 !== null && total !== null && total > 0) {
                 let pct = (auto1 / total) * 100;
                 pct = Math.max(0, Math.min(100, pct));
-            
                 cellContent = `
                   <div class="lc-wrap">
                     <div class="lc-num">${auto1.toLocaleString()}</div>
@@ -207,8 +217,7 @@
                 `;
               }
             }
-            
-          
+
             const cellElement = document.createElement(isHeader ? 'th' : 'td');
             cellElement.innerHTML = cellContent;
             cellElement.style.border = '1px solid #aaa';
@@ -229,9 +238,9 @@
               cellElement.style.fontWeight = 'bold';
             }
 
-            // STATUS COLORS
+            // Status colors
             if (!isHeader) {
-              const status = (cell || "").trim().toLowerCase();
+              const status = (cell || "").toString().trim().toLowerCase();
               if (status === "running") { cellElement.style.color = "green"; cellElement.style.fontWeight = "bold"; }
               if (status === "error")   { cellElement.style.color = "red"; cellElement.style.fontWeight = "bold"; }
               if (status === "stopped") { cellElement.style.color = "goldenrod"; cellElement.style.fontWeight = "bold"; }
@@ -244,21 +253,11 @@
           table.appendChild(tr);
         });
 
+        // Replace table
         const oldTable = document.querySelector('table');
         if (oldTable) oldTable.remove();
         document.body.appendChild(table);
 
-        statusEl.textContent = `Loaded OK • ${new Date().toLocaleString()} • CSV: ${CSV_URL} • links=${showLinks ? "ON" : "OFF"}`;
-      } catch (err) {
-        statusEl.textContent = `ERROR: ${err?.message || err}`;
-        console.error("loadCSV error:", err);
-      }
-    }
-
-    window.addEventListener("load", () => {
-      loadCSV();
-      setInterval(loadCSV, 60000);
-    });
-  </script>
-</body>
-</html>
+        // Update previous cache AFTER rendering
+        const newPrev = {};
+        for (c
