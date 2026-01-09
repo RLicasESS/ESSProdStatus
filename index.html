@@ -188,10 +188,25 @@
         // ===== rows is FINAL now (after freeze) =====
 
         // Add ESTIMATED FINISH row (DATE LOT STARTED + elapsed/progress)
-        const startRow = rows.find(r => norm(r[0]) === "DATE LOT STARTED") || [];
-        const lastUpdRow = rows.find(r => norm(r[0]) === "LAST UPDATE") || [];
-        const loadingRow = rows.find(r => norm(r[0]) === "LOADING COUNTS") || [];
+        //const startRow = rows.find(r => norm(r[0]) === "DATE LOT STARTED") || [];
+        //const lastUpdRow = rows.find(r => norm(r[0]) === "LAST UPDATE") || [];
+        //const loadingRow = rows.find(r => norm(r[0]) === "LOADING COUNTS") || [];
 
+
+        function findLastRow(rows, label) {
+          const want = norm(label);
+          for (let i = rows.length - 1; i >= 0; i--) {
+            if (norm(rows[i]?.[0]) === want) return rows[i];
+          }
+          return null;
+        }
+        
+        // ...
+        
+        const startRow   = rows.find(r => norm(r[0]) === "DATE LOT STARTED") || [];
+        const lastUpdRow = findLastRow(rows, "LAST UPDATE") || [];
+        const loadingRow = rows.find(r => norm(r[0]) === "LOADING COUNTS") || [];
+        
         const estFinishRow = [];
         estFinishRow[0] = "ESTIMATED FINISH";
 
