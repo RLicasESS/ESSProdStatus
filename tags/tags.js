@@ -40,8 +40,23 @@ async function apiGet(action, params = {}) {
     u.searchParams.set(k, v);
   }
 
-  const res = await fetch(u.toString());
-  const json = await res.json();
+  let res;
+  try {
+    res = await fetch(u.toString(), { redirect: "follow", cache: "no-store" });
+  } catch (e) {
+    throw new Error("Fetch failed (network/CORS): " + (e?.message || e));
+  }
+
+  const text = await res.text();
+
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    // This happens when the response is HTML (login page / blocked / etc.)
+    throw new Error("Non-JSON response: " + text.slice(0, 160));
+  }
+
   if (!json.ok) throw new Error(json.error || "API error");
   return json;
 }
@@ -220,6 +235,10 @@ async function viewTable() {
 // ---------------- Wire UI ----------------
 
 window.addEventListener("DOMContentLoaded", () => {
+  // DEBUG: confirm the Apps Script API is reachable from Safari/GitHub Pages
+  apiGet("version")
+    .then(v => setResult("API OK ✅<br><br>" + JSON.stringify(v), false))
+    .catch(e => setResult("API FAIL ❌<br><br>" + (e?.message || e), true));
   $("lookup").onclick = () => lookupTag().catch(e => setResult(e.message, true));
   $("register").onclick = () => submitRegisterOrEdit().catch(e => setResult(e.message, true));
 
