@@ -798,42 +798,42 @@
         showLotStatus(`END save failed: ${e.message}`, true);
         return;
       }
-    
+
       // 2) Ask next step and update Tags.LOT_QTY accordingly
-      const ansRaw = prompt("Next step? Type RT, BIN1, BIN2 (or Cancel to stop).", "");
-      if (ansRaw === null) {
-        showLotStatus("Saved END to STEPS ✅", false);
+      const nextRaw = prompt("Next step? RT1, RT2, BIN1_70C_FT1, BIN2_25C_FT1 (or cancel to skip)", "");
+      if (nextRaw === null) {
+        showLotStatus("Saved END to STEPS ✅ (skipped next step)", false);
         $("lotEndPanel").style.display = "none";
         return;
       }
-    
-      const ans = String(ansRaw).trim().toUpperCase();
-    
+      
+      const nextStep = String(nextRaw).trim();
+      const a = nextStep.toUpperCase();
+      
       let newQty = null;
-      if (ans.includes("RT")) newQty = rej;          // RT -> REJECT qty
-      else if (ans.includes("BIN1") || ans.includes("BIN 1")) newQty = bin1;
-      else if (ans.includes("BIN2") || ans.includes("BIN 2")) newQty = bin2;
-    
+      if (a.startsWith("RT")) newQty = rej;           // RT1/RT2/RT...
+      else if (a.startsWith("BIN1")) newQty = bin1;   // BIN1_...
+      else if (a.startsWith("BIN2")) newQty = bin2;   // BIN2_...
+      
       if (newQty === null) {
-        showLotStatus("Saved END to STEPS ✅ (next step not recognized; Tags LOT_QTY not changed)", false);
+        showLotStatus(`Saved END to STEPS ✅ (next step not recognized: "${nextStep}")`, true);
         $("lotEndPanel").style.display = "none";
         return;
       }
-    
+      
       try {
         await tagsApiPost({
           action: "update",
-          tag,                 // use TAG_ID as the key
+          tag,                 // TAG_ID key
           lot,
-          qty: String(newQty), // <-- new LOT_QTY
+          qty: String(newQty), // new LOT_QTY
           product
         });
-    
-        // keep local state in sync
+      
         lotLookupCtx.LOT_QTY = String(newQty);
         $("end_in").value = String(newQty);
-    
-        showLotStatus(`Saved END to STEPS ✅ | Next=${ans} | New LOT_QTY=${newQty}`, false);
+      
+        showLotStatus(`Saved END ✅ | Next="${nextStep}" | New LOT_QTY=${newQty}`, false);
         $("lotEndPanel").style.display = "none";
       } catch (e) {
         showLotStatus(`Saved END ✅ but failed to update Tags LOT_QTY: ${e.message}`, true);
