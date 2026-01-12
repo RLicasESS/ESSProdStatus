@@ -61,7 +61,7 @@
   <div id="dbg"></div>
 
 <!-- LOT LOOKUP (Tags Sheet + compare vs LOT NUMBER row in table) -->
-<div id="lotBox" style="width:60%; margin:10px auto 0 auto; font-family:Arial,sans-serif;">
+<div id="lotBox" style="display:none; width:60%; margin:10px auto 0 auto; font-family:Arial,sans-serif;">
   <div style="border:1px solid #ccc; border-radius:8px; padding:12px;">
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
       <div style="font-weight:700; width:120px;">ESS TAG</div>
@@ -168,6 +168,29 @@
     // const CSV_URL = new URL("ESSProd.csv", window.location.href).toString();
     const CSV_URL = "./ESSProd.csv";
 
+    const showTagIfPresent = params.get("tag") === "1";
+    
+    // Hide/Show helpers
+    function showTagBox(on) {
+      const el = document.getElementById("lotBox");
+      if (el) el.style.display = on ? "" : "none";
+    }
+    
+    // Decide whether ESS TAG should appear (only when present)
+    function shouldShowTagBoxFromTable(rows) {
+      if (!showTagIfPresent) return true; // if not using option, keep old behavior (always show)
+      if (!rows) return false;
+    
+      const lotRow = (rows || []).find(r => norm(r?.[0]) === "LOT NUMBER");
+      if (!lotRow) return false;
+    
+      // any non-empty LOT NUMBER cell means "present"
+      for (let c = 1; c < lotRow.length; c++) {
+        const v = String(lotRow[c] ?? "").trim();
+        if (v && v.toUpperCase() !== "NA") return true;
+      }
+      return false;
+    }
 
     // ===== TAGS API (Apps Script Web App) =====
     const TAGS_API_URL =
@@ -297,6 +320,8 @@
           dbg("CSV parsed but rows is empty.");
           return;
         }
+
+        showTagBox(shouldShowTagBoxFromTable(rows));
 
         // STATUS per column
         const statusRow = rows.find(r => norm(r[0]) === "STATUS") || [];
