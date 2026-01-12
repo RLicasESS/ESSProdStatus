@@ -587,6 +587,10 @@
         const old = document.querySelector("table");
         if (old) old.remove();
         document.body.appendChild(table);
+        
+        // ✅ Move the ESS TAG block under the table
+        const lotBox = document.getElementById("lotBox");
+        if (lotBox) document.body.appendChild(lotBox);
 
         // Update cache AFTER successful render
         const newPrev = {};
