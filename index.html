@@ -168,7 +168,10 @@
     const CSV_URL = new URL("ESSProd.csv", window.location.href).toString();
 
     // ===== TAGS API (Apps Script Web App) =====
-    const TAGS_API_URL = "PASTE_YOUR_TAGS_WEB_APP_EXEC_URL_HERE"; // <-- /exec
+    const TAGS_API_URL =
+  "https://script.google.com/macros/s/AKfycbytwPIElO5czOhnY5wmDUnQMCltrxApfADq_C2131TjY7uo8iFbVUafTAHJAIJTYjEjSw/exec";
+    document.getElementById("lotStatus").textContent = "TAGS_API_URL=" + TAGS_API_URL;
+
     
     function $(id){ return document.getElementById(id); }
     
