@@ -175,28 +175,6 @@
     
     function $(id){ return document.getElementById(id); }
     
-    async function tagsApiGet(action, params = {}) {
-      const u = new URL(TAGS_API_URL);
-      u.searchParams.set("action", action);
-      for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
-    
-      const res = await fetch(u.toString(), { cache: "no-store" });
-      const json = await res.json();
-      if (!json.ok) throw new Error(json.error || "Tags API error");
-      return json;
-    }
-    
-    async function tagsApiPost(payload) {
-      const res = await fetch(TAGS_API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload),
-      });
-      const json = await res.json();
-      if (!json.ok) throw new Error(json.error || "Tags API error");
-      return json;
-    }
-    
     // ===== LOT LOOKUP STATE =====
     let lastCSVRows = null;      // latest parsed rows (after freeze + estimated finish insert)
     let lotLookupCtx = null;     // { TAG_ID, LOT_ID, LOT_QTY, PRODUCT_NAME, STEP_FROM_TABLE, MATCHED_COLS }
@@ -227,6 +205,56 @@
 
       return lines.map(line => line.split(delim));
     }
+
+    function cleanUrl_(s) {
+      return String(s || "")
+        .replace(/[\s\u200B-\u200D\uFEFF]/g, "")  // trims + removes zero-width chars
+        .trim();
+    }
+    
+    async function tagsApiGet(action, params = {}) {
+      const base = cleanUrl_(TAGS_API_URL);
+      if (!base.startsWith("http")) {
+        throw new Error("TAGS_API_URL missing/invalid: " + base);
+      }
+    
+      const qp = new URLSearchParams({ action, ...params }).toString();
+      const url = base + (base.includes("?") ? "&" : "?") + qp;
+    
+      const res = await fetch(url, { cache: "no-store" });
+      const text = await res.text();
+    
+      let json;
+      try { json = JSON.parse(text); }
+      catch { throw new Error(`Non-JSON response. First 200 chars:\n${text.slice(0, 200)}`); }
+    
+      if (!json.ok) throw new Error(json.error || "Tags API error");
+      return json;
+    }
+    
+    async function tagsApiPost(payload) {
+      const base = cleanUrl_(TAGS_API_URL);
+      if (!base.startsWith("http")) {
+        throw new Error("TAGS_API_URL missing/invalid: " + base);
+      }
+    
+      const res = await fetch(base, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+        cache: "no-store",
+      });
+    
+      const text = await res.text();
+    
+      let json;
+      try { json = JSON.parse(text); }
+      catch { throw new Error(`Non-JSON response. First 200 chars:\n${text.slice(0, 200)}`); }
+    
+      if (!json.ok) throw new Error(json.error || "Tags API error");
+      return json;
+    }
+    
 
     // ---- Date helpers (for ESTIMATED FINISH) ----
     function parseDateTimeLocal(s) {
