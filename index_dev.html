@@ -616,7 +616,13 @@
       $("lotEditPanel").style.display = "none";
       $("lotEndPanel").style.display = "none";
     }
-    
+
+    function getCellIntByLabel(rows, label, colIndex) {
+      const r = findRowByLabel(rows, label);
+      if (!r) return 0;
+      return toInt0(r[colIndex]);
+    }
+ 
     function findRowByLabel(rows, label) {
       const want = norm(label);
       return (rows || []).find(r => norm(r[0]) === want) || null;
@@ -715,10 +721,19 @@
     
       $("end_in").value = lotLookupCtx.LOT_QTY || "";
       $("end_step").value = lotLookupCtx.STEP_FROM_TABLE || "";
-    
-      $("end_bin1").value = "";
-      $("end_bin2").value = "";
-      $("end_rej").value = "";
+
+      const col = (lotLookupCtx.MATCHED_COLS && lotLookupCtx.MATCHED_COLS[0]) ? lotLookupCtx.MATCHED_COLS[0] : null;
+      
+      // Defaults from table
+      if (col && lastCSVRows) {
+        $("end_bin1").value = String(getCellIntByLabel(lastCSVRows, "AUTO1", col) || 0);
+        $("end_bin2").value = String(getCellIntByLabel(lastCSVRows, "AUTO2", col) || 0);
+        $("end_rej").value  = String(getCellIntByLabel(lastCSVRows, "AUTO3", col) || 0);
+      } else {
+        $("end_bin1").value = "";
+        $("end_bin2").value = "";
+        $("end_rej").value  = "";
+      }
     }
     
     function toInt0(x) {
@@ -766,6 +781,7 @@
         return;
       }
     
+      // 1) Save row to STEPS sheet
       try {
         await tagsApiPost({
           action: "save_step",
@@ -778,10 +794,49 @@
           bin2,
           reject: rej
         });
-        showLotStatus("Saved END to STEPS ✅", false);
-        $("lotEndPanel").style.display = "none";
       } catch (e) {
         showLotStatus(`END save failed: ${e.message}`, true);
+        return;
+      }
+    
+      // 2) Ask next step and update Tags.LOT_QTY accordingly
+      const ansRaw = prompt("Next step? Type RT, BIN1, BIN2 (or Cancel to stop).", "");
+      if (ansRaw === null) {
+        showLotStatus("Saved END to STEPS ✅", false);
+        $("lotEndPanel").style.display = "none";
+        return;
+      }
+    
+      const ans = String(ansRaw).trim().toUpperCase();
+    
+      let newQty = null;
+      if (ans.includes("RT")) newQty = rej;          // RT -> REJECT qty
+      else if (ans.includes("BIN1") || ans.includes("BIN 1")) newQty = bin1;
+      else if (ans.includes("BIN2") || ans.includes("BIN 2")) newQty = bin2;
+    
+      if (newQty === null) {
+        showLotStatus("Saved END to STEPS ✅ (next step not recognized; Tags LOT_QTY not changed)", false);
+        $("lotEndPanel").style.display = "none";
+        return;
+      }
+    
+      try {
+        await tagsApiPost({
+          action: "update",
+          tag,                 // use TAG_ID as the key
+          lot,
+          qty: String(newQty), // <-- new LOT_QTY
+          product
+        });
+    
+        // keep local state in sync
+        lotLookupCtx.LOT_QTY = String(newQty);
+        $("end_in").value = String(newQty);
+    
+        showLotStatus(`Saved END to STEPS ✅ | Next=${ans} | New LOT_QTY=${newQty}`, false);
+        $("lotEndPanel").style.display = "none";
+      } catch (e) {
+        showLotStatus(`Saved END ✅ but failed to update Tags LOT_QTY: ${e.message}`, true);
       }
     }
 
