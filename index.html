@@ -64,9 +64,9 @@
 <div id="lotBox" style="width:60%; margin:10px auto 0 auto; font-family:Arial,sans-serif;">
   <div style="border:1px solid #ccc; border-radius:8px; padding:12px;">
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-      <div style="font-weight:700; width:120px;">LOT ID</div>
-      <input id="lotLookup" placeholder="Enter LOT ID" style="padding:8px; font-size:16px; flex:1; min-width:220px;" />
-      <button id="lotLookupBtn" style="padding:9px 14px; font-size:16px; font-weight:700; cursor:pointer;">
+      <div style="font-weight:700; width:120px;">ESS TAG</div>
+      <input id="tagLookup" placeholder="Scan ESS Tag" style="padding:8px; font-size:16px; flex:1; min-width:220px;" />
+      <button id="tagLookupBtn" style="padding:9px 14px; font-size:16px; font-weight:700; cursor:pointer;">
         LOOKUP
       </button>
     </div>
@@ -605,13 +605,13 @@
       return (stepRow[colIndex] || "").toString().trim();
     }
     
-    async function onLotLookup() {
+    async function onTagLookup() {
       hideLotPanels();
       lotLookupCtx = null;
     
-      const lot = $("lotLookup").value.trim();
-      if (!lot) {
-        showLotStatus("Please enter a LOT ID.", true);
+      const tag = $("tagLookup").value.trim();
+      if (!tag) {
+        showLotStatus("Please scan an ESS TAG.", true);
         return;
       }
     
@@ -620,45 +620,46 @@
         return;
       }
     
-      // Compare vs LOT NUMBER in the CSV table
-      const matchedCols = findMatchingColsForLot(lastCSVRows, lot);
-      if (matchedCols.length === 0) {
-        showLotStatus(`Lot not found in table (LOT NUMBER): ${lot}`, true);
-        return;
-      }
-    
-      // Lookup in Tags sheet by LOT_ID
+      // Lookup in Tags sheet by TAG_ID
       let out;
       try {
-        out = await tagsApiGet("lotlookup", { lot });
+        out = await tagsApiGet("lookup", { tag });
       } catch (e) {
         showLotStatus(`Tags API error: ${e.message}`, true);
         return;
       }
     
       if (!out.found) {
-        showLotStatus(`Lot not found in Tags sheet: ${lot}`, true);
+        showLotStatus(`Tag not found in Tags sheet: ${tag}`, true);
         return;
       }
     
-      // Use the FIRST matched column’s step (if multiple columns match, we’ll mention it)
+      // Use LOT_ID from Tags to match against LOT NUMBER row in table
+      const lotId = String(out.data.LOT_ID || "").trim();
+      const matchedCols = findMatchingColsForLot(lastCSVRows, lotId);
+      if (matchedCols.length === 0) {
+        showLotStatus(`LOT not found in table (LOT NUMBER): ${lotId}`, true);
+        return;
+      }
+    
+      // STEP comes from TEST STEP row for the matched column
       const step = getStepForCol(lastCSVRows, matchedCols[0]);
     
       lotLookupCtx = {
-        ...out.data, // TAG_ID, LOT_ID, LOT_QTY, PRODUCT_NAME
+        ...out.data,               // TAG_ID, LOT_ID, LOT_QTY, PRODUCT_NAME, REGISTER_DATE
         STEP_FROM_TABLE: step,
         MATCHED_COLS: matchedCols
       };
     
       const note = matchedCols.length > 1
-        ? `Found in table on ${matchedCols.length} column(s). Using first match for STEP.`
-        : `Found in table.`;
+        ? `Found LOT in table on ${matchedCols.length} column(s). Using first match for STEP.`
+        : `Found LOT in table.`;
     
-      showLotStatus(`Lot found ✅ ${note}`, false);
+      showLotStatus(`Tag found ✅ ${note}`, false);
     
       $("lotActions").style.display = "flex";
     }
-    
+
     function openEditLot() {
       if (!lotLookupCtx) return;
     
@@ -750,9 +751,9 @@
     }
 
     window.addEventListener("DOMContentLoaded", () => {
-      $("lotLookupBtn").onclick = () => onLotLookup();
-      $("lotLookup").addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter") onLotLookup();
+      $("tagLookupBtn").onclick = () => onTagLookup();
+      $("tagLookup").addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") onTagLookup();
       });
     
       $("lotEditBtn").onclick = () => openEditLot();
