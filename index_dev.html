@@ -410,8 +410,8 @@
         // ...
         
         const startRow   = rows.find(r => norm(r[0]) === "DATE LOT STARTED") || [];
-        // const lastUpdRow = findLastRow(rows, "LAST UPDATE") || [];
-        const lastUpdRow = findLatestUpdateRow(rows) || [];
+        const lastUpdRow = findLastRow(rows, "LAST UPDATE") || [];
+        // const lastUpdRow = findLatestUpdateRow(rows) || [];
         const loadingRow = rows.find(r => norm(r[0]) === "LOADING COUNTS") || [];
         
         const estFinishRow = [];
