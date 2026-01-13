@@ -176,21 +176,24 @@
       if (el) el.style.display = on ? "" : "none";
     }
     
-    // Decide whether ESS TAG should appear (only when present)
+    // Decide whether ESS TAG should appear
     function shouldShowTagBoxFromTable(rows) {
-      if (!showTagIfPresent) return true; // if not using option, keep old behavior (always show)
+      // Default behavior: hide unless ?tag=1 is present
+      if (!showTagIfPresent) return false;
+    
       if (!rows) return false;
     
       const lotRow = (rows || []).find(r => norm(r?.[0]) === "LOT NUMBER");
       if (!lotRow) return false;
     
-      // any non-empty LOT NUMBER cell means "present"
+      // show only if there is at least one real LOT NUMBER
       for (let c = 1; c < lotRow.length; c++) {
         const v = String(lotRow[c] ?? "").trim();
         if (v && v.toUpperCase() !== "NA") return true;
       }
       return false;
     }
+
 
     // ===== TAGS API (Apps Script Web App) =====
     const TAGS_API_URL =
