@@ -374,6 +374,30 @@
         //const lastUpdRow = rows.find(r => norm(r[0]) === "LAST UPDATE") || [];
         //const loadingRow = rows.find(r => norm(r[0]) === "LOADING COUNTS") || [];
 
+          function findLatestUpdateRow(rows) {
+          const want = norm("LAST UPDATE");
+          const candidates = [];
+          for (const r of rows || []) {
+            if (norm(r?.[0]) === want) candidates.push(r);
+          }
+          if (!candidates.length) return null;
+        
+          // Pick the row that contains the newest parsable timestamp in any column
+          let best = candidates[0];
+          let bestT = -Infinity;
+        
+          for (const r of candidates) {
+            for (let c = 1; c < r.length; c++) {
+              const d = parseDateTimeLocal(r[c]);
+              if (d && d.getTime() > bestT) {
+                bestT = d.getTime();
+                best = r;
+              }
+            }
+          }
+          return best;
+        }
+      
 
         function findLastRow(rows, label) {
           const want = norm(label);
@@ -386,7 +410,8 @@
         // ...
         
         const startRow   = rows.find(r => norm(r[0]) === "DATE LOT STARTED") || [];
-        const lastUpdRow = findLastRow(rows, "LAST UPDATE") || [];
+        // const lastUpdRow = findLastRow(rows, "LAST UPDATE") || [];
+        const lastUpdRow = findLatestUpdateRow(rows) || [];
         const loadingRow = rows.find(r => norm(r[0]) === "LOADING COUNTS") || [];
         
         const estFinishRow = [];
