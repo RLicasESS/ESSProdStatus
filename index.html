@@ -150,7 +150,7 @@
 
   </div>
 </div>
-
+  
   <script>
     const params = new URLSearchParams(window.location.search);
     const showLinks = params.get("links") === "1";
@@ -165,21 +165,28 @@
         `<a href="https://connect.raspberrypi.com/devices" target="_blank">ESS</a> PRODUCTION`;
     }
 
+    // const CSV_URL = new URL("ESSProd.csv", window.location.href).toString();
     const CSV_URL = "./ESSProd.csv";
-    const showTagIfPresent = params.get("tag") === "1";
 
+    const showTagIfPresent = params.get("tag") === "1";
+    
+    // Hide/Show helpers
     function showTagBox(on) {
       const el = document.getElementById("lotBox");
       if (el) el.style.display = on ? "" : "none";
     }
-
+    
+    // Decide whether ESS TAG should appear
     function shouldShowTagBoxFromTable(rows) {
+      // Default behavior: hide unless ?tag=1 is present
       if (!showTagIfPresent) return false;
+    
       if (!rows) return false;
-
+    
       const lotRow = (rows || []).find(r => norm(r?.[0]) === "LOT NUMBER");
       if (!lotRow) return false;
-
+    
+      // show only if there is at least one real LOT NUMBER
       for (let c = 1; c < lotRow.length; c++) {
         const v = String(lotRow[c] ?? "").trim();
         if (v && v.toUpperCase() !== "NA") return true;
@@ -187,15 +194,17 @@
       return false;
     }
 
+
     // ===== TAGS API (Apps Script Web App) =====
     const TAGS_API_URL =
-      "https://script.google.com/macros/s/AKfycbytwPIElO5czOhnY5wmDUnQMCltrxApfADq_C2131TjY7uo8iFbVUafTAHJAIJTYjEjSw/exec";
-
+  "https://script.google.com/macros/s/AKfycbytwPIElO5czOhnY5wmDUnQMCltrxApfADq_C2131TjY7uo8iFbVUafTAHJAIJTYjEjSw/exec";
+    
     function $(id){ return document.getElementById(id); }
-
-    let lastCSVRows = null;
-    let lotLookupCtx = null;
-    let prevRowsByLabel = null;
+    
+    // ===== LOT LOOKUP STATE =====
+    let lastCSVRows = null;      // latest parsed rows (after freeze + estimated finish insert)
+    let lotLookupCtx = null;     // { TAG_ID, LOT_ID, LOT_QTY, PRODUCT_NAME, STEP_FROM_TABLE, MATCHED_COLS }
+    let prevRowsByLabel = null; // { LABEL: rowArray }
 
     function norm(s) {
       return (s || "").toString().replace(/\r/g, "").trim().toUpperCase();
@@ -215,66 +224,72 @@
     function parseCSV(text) {
       const lines = text.replace(/\r/g, "").trim().split(/\n/);
       if (!lines.length) return [];
+
+      // Auto-detect delimiter from first line
       const first = lines[0];
       const delim = first.includes("\t") ? "\t" : ",";
+
       return lines.map(line => line.split(delim));
     }
 
     function cleanUrl_(s) {
       return String(s || "")
-        .replace(/[\s\u200B-\u200D\uFEFF]/g, "")
+        .replace(/[\s\u200B-\u200D\uFEFF]/g, "")  // trims + removes zero-width chars
         .trim();
     }
-
+    
     async function tagsApiGet(action, params = {}) {
       const base = cleanUrl_(TAGS_API_URL);
       if (!base.startsWith("http")) {
         throw new Error("TAGS_API_URL missing/invalid: " + base);
       }
-
+    
       const qp = new URLSearchParams({ action, ...params }).toString();
       const url = base + (base.includes("?") ? "&" : "?") + qp;
-
+    
       const res = await fetch(url, { cache: "no-store" });
       const text = await res.text();
-
+    
       let json;
       try { json = JSON.parse(text); }
       catch { throw new Error(`Non-JSON response. First 200 chars:\n${text.slice(0, 200)}`); }
-
+    
       if (!json.ok) throw new Error(json.error || "Tags API error");
       return json;
     }
-
+    
     async function tagsApiPost(payload) {
       const base = cleanUrl_(TAGS_API_URL);
       if (!base.startsWith("http")) {
         throw new Error("TAGS_API_URL missing/invalid: " + base);
       }
-
+    
       const res = await fetch(base, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload),
         cache: "no-store",
       });
-
+    
       const text = await res.text();
-
+    
       let json;
       try { json = JSON.parse(text); }
       catch { throw new Error(`Non-JSON response. First 200 chars:\n${text.slice(0, 200)}`); }
-
+    
       if (!json.ok) throw new Error(json.error || "Tags API error");
       return json;
     }
+    
 
     // ---- Date helpers (for ESTIMATED FINISH) ----
     function parseDateTimeLocal(s) {
       const raw = (s || "").toString().trim();
       if (!raw) return null;
 
+      // "YYYY-MM-DD HH:MM:SS(.ffffff)" -> "YYYY-MM-DDTHH:MM:SS(.fff)"
       let x = raw.replace(" ", "T");
+      // Trim microseconds to milliseconds if present
       x = x.replace(/\.(\d{3})\d+/, ".$1");
 
       const d = new Date(x);
@@ -282,6 +297,7 @@
     }
     function pad2(n) { return String(n).padStart(2, "0"); }
     function fmtDateTime(d) {
+      // Local time: YYYY-MM-DD HH:MM
       return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
     }
     // --------------------------------------------
@@ -297,7 +313,7 @@
 
         if (!resp.ok) {
           dbg(`CSV fetch failed: ${resp.status} ${resp.statusText}`);
-          return;
+          return; // no visible status line unless debug=1
         }
 
         const text = await resp.text();
@@ -350,7 +366,38 @@
         }
 
         // ===== rows is FINAL now (after freeze) =====
+        
         lastCSVRows = rows;
+
+        // Add ESTIMATED FINISH row (DATE LOT STARTED + elapsed/progress)
+        //const startRow = rows.find(r => norm(r[0]) === "DATE LOT STARTED") || [];
+        //const lastUpdRow = rows.find(r => norm(r[0]) === "LAST UPDATE") || [];
+        //const loadingRow = rows.find(r => norm(r[0]) === "LOADING COUNTS") || [];
+
+          function findLatestUpdateRow(rows) {
+          const want = norm("LAST UPDATE");
+          const candidates = [];
+          for (const r of rows || []) {
+            if (norm(r?.[0]) === want) candidates.push(r);
+          }
+          if (!candidates.length) return null;
+        
+          // Pick the row that contains the newest parsable timestamp in any column
+          let best = candidates[0];
+          let bestT = -Infinity;
+        
+          for (const r of candidates) {
+            for (let c = 1; c < r.length; c++) {
+              const d = parseDateTimeLocal(r[c]);
+              if (d && d.getTime() > bestT) {
+                bestT = d.getTime();
+                best = r;
+              }
+            }
+          }
+          return best;
+        }
+      
 
         function findLastRow(rows, label) {
           const want = norm(label);
@@ -359,11 +406,14 @@
           }
           return null;
         }
-
+        
+        // ...
+        
         const startRow   = rows.find(r => norm(r[0]) === "DATE LOT STARTED") || [];
         const lastUpdRow = findLastRow(rows, "LAST UPDATE") || [];
+        // const lastUpdRow = findLatestUpdateRow(rows) || [];
         const loadingRow = rows.find(r => norm(r[0]) === "LOADING COUNTS") || [];
-
+        
         const estFinishRow = [];
         estFinishRow[0] = "ESTIMATED FINISH";
 
@@ -388,13 +438,16 @@
             continue;
           }
 
+          // Cap progress to avoid nonsense if loading > totalIn
           const p = Math.min(1, progress);
+
           const estTotalMs = elapsedMs / p;
           const finishDt = new Date(startDt.getTime() + estTotalMs);
 
           estFinishRow[c] = fmtDateTime(finishDt);
         }
 
+        // Insert right after TOTAL IN row (or append if TOTAL IN not found)
         const idxTotalIn = rows.findIndex(r => norm(r[0]) === "TOTAL IN");
         const insertAt = idxTotalIn >= 0 ? idxTotalIn + 1 : rows.length;
         rows.splice(insertAt, 0, estFinishRow);
@@ -406,18 +459,10 @@
           autoSumByCol[c] = sumAutosForCol(rows, c);
         }
 
+        // ===========================================
+
         // Build table
         const table = document.createElement("table");
-
-        // ✅ Equal-width columns (fixes last column being wider)
-        const colCount = Math.max(...rows.map(r => r.length), 1);
-        const colgroup = document.createElement("colgroup");
-        for (let i = 0; i < colCount; i++) {
-          const col = document.createElement("col");
-          col.style.width = (100 / colCount) + "%";
-          colgroup.appendChild(col);
-        }
-        table.appendChild(colgroup);
 
         rows.forEach((row, rowIndex) => {
           const nonEmptyCount = row.filter(cell => {
@@ -466,7 +511,7 @@
               }
             }
 
-            // VNC links
+            // VNC links (no header gate, matches your links.html style)
             if (showLinks && c === "AP-1")   cellContent = `<a href="vnc://AP-1">AP-1</a>`;
             if (showLinks && c === "AP-2")   cellContent = `<a href="vnc://AP-2">AP-2</a>`;
             if (showLinks && c === "S100_1") cellContent = `<a href="vnc://S100-1">S100_1</a>`;
@@ -489,7 +534,7 @@
               }
             }
 
-            // AUTO1 progress (AUTO1 / TOTAL)
+            // AUTO1 progress (AUTO1 / TOTAL) — display AUTO1 number only
             if (!isHeader && (rowLabel === "AUTO1" || rowLabel === "AUTO 1") && colIndex > 0) {
               const auto1 = toInt(cell);
               const total = toInt(totalRow[colIndex]);
@@ -506,7 +551,7 @@
               }
             }
 
-            // AUTO2 progress (AUTO2 / TOTAL)
+            // AUTO2 progress (AUTO2 / TOTAL) — display AUTO2 number only
             if (!isHeader && (rowLabel === "AUTO2" || rowLabel === "AUTO 2") && colIndex > 0) {
               const auto2 = toInt(cell);
               const total = toInt(totalRow[colIndex]);
@@ -593,8 +638,8 @@
         const old = document.querySelector("table");
         if (old) old.remove();
         document.body.appendChild(table);
-
-        // Move the ESS TAG block under the table
+        
+        // ✅ Move the ESS TAG block under the table
         const lotBox = document.getElementById("lotBox");
         if (lotBox) document.body.appendChild(lotBox);
 
@@ -618,7 +663,7 @@
       el.style.color = danger ? "#b00020" : "#555";
       el.textContent = msg;
     }
-
+    
     function hideLotPanels() {
       $("lotActions").style.display = "none";
       $("lotEditPanel").style.display = "none";
@@ -630,16 +675,16 @@
       if (!r) return 0;
       return toInt0(r[colIndex]);
     }
-
+ 
     function findRowByLabel(rows, label) {
       const want = norm(label);
       return (rows || []).find(r => norm(r[0]) === want) || null;
     }
-
+    
     function findMatchingColsForLot(rows, lotId) {
       const lotRow = findRowByLabel(rows, "LOT NUMBER");
       if (!lotRow) return [];
-
+    
       const want = norm(lotId);
       const cols = [];
       for (let c = 1; c < lotRow.length; c++) {
@@ -647,28 +692,29 @@
       }
       return cols;
     }
-
+    
     function getStepForCol(rows, colIndex) {
       const stepRow = findRowByLabel(rows, "TEST STEP");
       if (!stepRow) return "";
       return (stepRow[colIndex] || "").toString().trim();
     }
-
+    
     async function onTagLookup() {
       hideLotPanels();
       lotLookupCtx = null;
-
+    
       const tag = $("tagLookup").value.trim();
       if (!tag) {
         showLotStatus("Please scan an ESS TAG.", true);
         return;
       }
-
+    
       if (!lastCSVRows) {
         showLotStatus("Table not loaded yet. Wait 1–2 seconds then try again.", true);
         return;
       }
-
+    
+      // Lookup in Tags sheet by TAG_ID
       let out;
       try {
         out = await tagsApiGet("lookup", { tag });
@@ -676,58 +722,62 @@
         showLotStatus(`Tags API error: ${e.message}`, true);
         return;
       }
-
+    
       if (!out.found) {
         showLotStatus(`Tag not found in Tags sheet: ${tag}`, true);
         return;
       }
-
+    
+      // Use LOT_ID from Tags to match against LOT NUMBER row in table
       const lotId = String(out.data.LOT_ID || "").trim();
       const matchedCols = findMatchingColsForLot(lastCSVRows, lotId);
       if (matchedCols.length === 0) {
         showLotStatus(`LOT not found in table (LOT NUMBER): ${lotId}`, true);
         return;
       }
-
+    
+      // STEP comes from TEST STEP row for the matched column
       const step = getStepForCol(lastCSVRows, matchedCols[0]);
-
+    
       lotLookupCtx = {
-        ...out.data,
+        ...out.data,               // TAG_ID, LOT_ID, LOT_QTY, PRODUCT_NAME, REGISTER_DATE
         STEP_FROM_TABLE: step,
         MATCHED_COLS: matchedCols
       };
-
+    
       const note = matchedCols.length > 1
         ? `Found LOT in table on ${matchedCols.length} column(s). Using first match for STEP.`
         : `Found LOT in table.`;
-
+    
       showLotStatus(`Tag found ✅ ${note}`, false);
+    
       $("lotActions").style.display = "flex";
     }
 
     function openEditLot() {
       if (!lotLookupCtx) return;
-
+    
       $("lotEditPanel").style.display = "block";
       $("lotEndPanel").style.display = "none";
-
+    
       $("edit_tag").value = lotLookupCtx.TAG_ID || "";
       $("edit_lot").value = lotLookupCtx.LOT_ID || "";
       $("edit_qty").value = lotLookupCtx.LOT_QTY || "";
       $("edit_product").value = lotLookupCtx.PRODUCT_NAME || "";
     }
-
+    
     function openEndLot() {
       if (!lotLookupCtx) return;
-
+    
       $("lotEndPanel").style.display = "block";
       $("lotEditPanel").style.display = "none";
-
+    
       $("end_in").value = lotLookupCtx.LOT_QTY || "";
       $("end_step").value = lotLookupCtx.STEP_FROM_TABLE || "";
 
       const col = (lotLookupCtx.MATCHED_COLS && lotLookupCtx.MATCHED_COLS[0]) ? lotLookupCtx.MATCHED_COLS[0] : null;
-
+      
+      // Defaults from table
       if (col && lastCSVRows) {
         $("end_bin1").value = String(getCellIntByLabel(lastCSVRows, "AUTO1", col) || 0);
         $("end_bin2").value = String(getCellIntByLabel(lastCSVRows, "AUTO2", col) || 0);
@@ -738,25 +788,25 @@
         $("end_rej").value  = "";
       }
     }
-
+    
     function toInt0(x) {
       const n = parseInt(String(x ?? "").replace(/[^\d-]/g, ""), 10);
       return Number.isFinite(n) ? n : 0;
     }
-
+    
     async function saveEditLot() {
       if (!lotLookupCtx) return;
-
+    
       const tag = String($("edit_tag").value || "").trim();
       const lot = String($("edit_lot").value || "").trim();
       const qty = String($("edit_qty").value || "").trim();
       const product = String($("edit_product").value || "").trim();
-
+    
       if (!tag || !lot || !qty || !product) {
         showLotStatus("All fields are required for EDIT.", true);
         return;
       }
-
+    
       try {
         await tagsApiPost({ action: "update", tag, lot, qty, product });
         showLotStatus("Saved changes ✅", false);
@@ -765,25 +815,26 @@
         showLotStatus(`Save failed: ${e.message}`, true);
       }
     }
-
+    
     async function saveEndStep() {
       if (!lotLookupCtx) return;
-
+    
       const lot = String(lotLookupCtx.LOT_ID || "").trim();
       const tag = String(lotLookupCtx.TAG_ID || "").trim();
       const product = String(lotLookupCtx.PRODUCT_NAME || "").trim();
       const step = String($("end_step").value || "").trim();
       const inQty = toInt0($("end_in").value);
-
+    
       const bin1 = toInt0($("end_bin1").value);
       const bin2 = toInt0($("end_bin2").value);
       const rej  = toInt0($("end_rej").value);
-
+    
       if (!lot || !step || inQty <= 0) {
         showLotStatus("END: Missing LOT/STEP or invalid IN qty.", true);
         return;
       }
-
+    
+      // 1) Save row to STEPS sheet
       try {
         await tagsApiPost({
           action: "save_step",
@@ -792,3 +843,76 @@
           product,
           step,
           in_qty: inQty,
+          bin1,
+          bin2,
+          reject: rej
+        });
+      } catch (e) {
+        showLotStatus(`END save failed: ${e.message}`, true);
+        return;
+      }
+
+      // 2) Ask next step and update Tags.LOT_QTY accordingly
+      const nextRaw = prompt("Next step? RT1, RT2, BIN1_70C_FT1, BIN2_25C_FT1 (or cancel to skip)", "");
+      if (nextRaw === null) {
+        showLotStatus("Saved END to STEPS ✅ (skipped next step)", false);
+        $("lotEndPanel").style.display = "none";
+        return;
+      }
+      
+      const nextStep = String(nextRaw).trim();
+      const a = nextStep.toUpperCase();
+      
+      let newQty = null;
+      if (a.startsWith("RT")) newQty = rej;           // RT1/RT2/RT...
+      else if (a.startsWith("BIN1")) newQty = bin1;   // BIN1_...
+      else if (a.startsWith("BIN2")) newQty = bin2;   // BIN2_...
+      
+      if (newQty === null) {
+        showLotStatus(`Saved END to STEPS ✅ (next step not recognized: "${nextStep}")`, true);
+        $("lotEndPanel").style.display = "none";
+        return;
+      }
+      
+      try {
+        await tagsApiPost({
+          action: "update",
+          tag,                 // TAG_ID key
+          lot,
+          qty: String(newQty), // new LOT_QTY
+          product
+        });
+      
+        lotLookupCtx.LOT_QTY = String(newQty);
+        $("end_in").value = String(newQty);
+      
+        showLotStatus(`Saved END ✅ | Next="${nextStep}" | New LOT_QTY=${newQty}`, false);
+        $("lotEndPanel").style.display = "none";
+      } catch (e) {
+        showLotStatus(`Saved END ✅ but failed to update Tags LOT_QTY: ${e.message}`, true);
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      $("tagLookupBtn").onclick = () => onTagLookup();
+      $("tagLookup").addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") onTagLookup();
+      });
+    
+      $("lotEditBtn").onclick = () => openEditLot();
+      $("lotEndBtn").onclick  = () => openEndLot();
+    
+      $("edit_save").onclick   = () => saveEditLot();
+      $("edit_cancel").onclick = () => { $("lotEditPanel").style.display = "none"; };
+    
+      $("end_save").onclick    = () => saveEndStep();
+      $("end_cancel").onclick  = () => { $("lotEndPanel").style.display = "none"; };
+    });
+    
+    window.addEventListener("load", () => {
+      loadCSV();
+      setInterval(loadCSV, 60000);
+    });
+  </script>
+</body>
+</html>
