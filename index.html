@@ -4,36 +4,44 @@
   <meta charset="utf-8" />
   <title>ESS PRODUCTION</title>
   <style>
-    table {
+    table{
       border-collapse: collapse;
       width: 60%;
       margin: 20px auto;
       font-family: Arial, sans-serif;
 
-      table-layout: fixed;              /* ✅ force equal column sizing */
+      table-layout: fixed;            /* ✅ equal column widths */
     }
-    th, td {
+    th, td{
       border: 1px solid #aaa;
       padding: 8px 12px;
       text-align: left;
 
-      overflow-wrap: anywhere;          /* ✅ prevent long text from widening a column */
-      word-break: break-word;
+      white-space: nowrap;            /* ✅ keep rows compact */
+      overflow: hidden;               /* ✅ allow ellipsis */
+      text-overflow: ellipsis;        /* ✅ show ... */
     }
-    th {
+    th{
       background-color: #2c3e50;
       color: white;
       font-weight: bold;
     }
-    a {
+    a{
       color: #007bff;
       font-weight: bold;
       text-decoration: none;
     }
-    a:hover { text-decoration: underline; }
+    a:hover{ text-decoration: underline; }
+
+    /* allow multi-line only where needed */
+    td.wrap{
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+    }
 
     /* Debug line (hidden unless ?debug=1) */
-    #dbg {
+    #dbg{
       width: 60%;
       margin: 6px auto 0 auto;
       font-family: Arial, sans-serif;
@@ -43,16 +51,16 @@
     }
 
     /* Progress bars */
-    .lc-wrap { display: flex; flex-direction: column; gap: 6px; }
+    .lc-wrap { display: flex; flex-direction: column; gap: 6px; white-space: normal; }
     .lc-num  { font-weight: 600; }
-    .prog {
+    .prog{
       height: 12px;
       border: 1px solid #bbb;
       border-radius: 8px;
       background: #f2f2f2;
       overflow: hidden;
     }
-    .prog > .bar {
+    .prog > .bar{
       height: 100%;
       width: 0%;
       background: #2e7d32;
@@ -173,13 +181,15 @@
     const CSV_URL = "./ESSProd.csv";
     const showTagIfPresent = params.get("tag") === "1";
 
-    // Hide/Show helpers
     function showTagBox(on) {
       const el = document.getElementById("lotBox");
       if (el) el.style.display = on ? "" : "none";
     }
 
-    // Decide whether ESS TAG should appear
+    function norm(s) {
+      return (s || "").toString().replace(/\r/g, "").trim().toUpperCase();
+    }
+
     function shouldShowTagBoxFromTable(rows) {
       if (!showTagIfPresent) return false;
       if (!rows) return false;
@@ -200,14 +210,10 @@
 
     function $(id){ return document.getElementById(id); }
 
-    // ===== LOT LOOKUP STATE =====
     let lastCSVRows = null;
     let lotLookupCtx = null;
     let prevRowsByLabel = null;
 
-    function norm(s) {
-      return (s || "").toString().replace(/\r/g, "").trim().toUpperCase();
-    }
     function toInt(x) {
       const v = parseInt((x || "").toString().replace(/,/g, "").trim(), 10);
       return Number.isNaN(v) ? null : v;
@@ -277,10 +283,8 @@
     function parseDateTimeLocal(s) {
       const raw = (s || "").toString().trim();
       if (!raw) return null;
-
       let x = raw.replace(" ", "T");
       x = x.replace(/\.(\d{3})\d+/, ".$1");
-
       const d = new Date(x);
       return Number.isNaN(d.getTime()) ? null : d;
     }
@@ -314,14 +318,12 @@
 
         showTagBox(shouldShowTagBoxFromTable(rows));
 
-        // STATUS per column
         const statusRow = rows.find(r => norm(r[0]) === "STATUS") || [];
         const statusByCol = {};
         for (let c = 1; c < statusRow.length; c++) {
           statusByCol[c] = (statusRow[c] || "").toString().trim().toLowerCase();
         }
 
-        // TOTAL IN per column (for LOADING COUNTS progress)
         const totalInRow = rows.find(r => norm(r[0]) === "TOTAL IN") || [];
         const totalInByCol = {};
         for (let c = 1; c < totalInRow.length; c++) {
@@ -329,10 +331,8 @@
           if (v !== null) totalInByCol[c] = v;
         }
 
-        // TOTAL row (for AUTO1 / TOTAL progress, AUTO2 / TOTAL progress)
         const totalRow = rows.find(r => norm(r[0]) === "TOTAL") || [];
 
-        // Freeze numeric values when STATUS=error for that column
         const freezeLabels = new Set(["TOTAL IN", "LOADING COUNTS", "TOTAL", "AUTO1", "AUTO2", "AUTO3"]);
         if (prevRowsByLabel) {
           for (const r of rows) {
@@ -402,7 +402,6 @@
         const insertAt = idxTotalIn >= 0 ? idxTotalIn + 1 : rows.length;
         rows.splice(insertAt, 0, estFinishRow);
 
-        // Precompute autoSum (AUTO1+AUTO2+AUTO3) per column
         const autoSumByCol = {};
         const maxCols = Math.max(...rows.map(r => r.length));
         for (let c = 1; c < maxCols; c++) {
@@ -412,17 +411,17 @@
         // Build table
         const table = document.createElement("table");
 
-        // ✅ Force consistent column widths (auto-detect column count)
+        // ✅ Force equal column widths (prevents last column wider)
         const headerRow = rows[0] || [];
-        const colCount = Math.max(1, headerRow.length); // includes first label column
-
+        const colCount = Math.max(1, headerRow.length);
         const colgroup = document.createElement("colgroup");
-        const col0 = document.createElement("col");
-        col0.style.width = "14%"; // label column
-        colgroup.appendChild(col0);
+
+        const c0 = document.createElement("col");
+        c0.style.width = "14%";                 // label column
+        colgroup.appendChild(c0);
 
         const remaining = Math.max(1, colCount - 1);
-        const w = (86 / remaining); // 100-14 = 86%
+        const w = (86 / remaining);
         for (let i = 0; i < remaining; i++) {
           const col = document.createElement("col");
           col.style.width = w.toFixed(3) + "%";
@@ -530,6 +529,11 @@
 
             const cellEl = document.createElement(isHeader ? "th" : "td");
             cellEl.innerHTML = cellContent;
+
+            // allow wrap only on TEST STEP row (keeps table compact)
+            if (!isHeader && rowLabel === "TEST STEP") {
+              cellEl.classList.add("wrap");
+            }
 
             if (colIndex === 0) {
               cellEl.style.backgroundColor = isHeader ? "#2c3e50" : "#dff0d8";
