@@ -6,52 +6,20 @@
   <style>
     table {
       border-collapse: collapse;
-      width: 70%;                 /* was 60% */
+      width: 60%;
       margin: 20px auto;
       font-family: Arial, sans-serif;
-
-      table-layout: fixed;        /* ✅ keeps last column equal */
     }
-
     th, td {
       border: 1px solid #aaa;
       padding: 8px 12px;
       text-align: left;
-      vertical-align: top;
     }
-
     th {
       background-color: #2c3e50;
       color: white;
       font-weight: bold;
-
-      /* headers should be readable */
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
-
-    /* ✅ First column (row labels) should NOT ellipsis */
-    td:first-child, th:first-child {
-      white-space: normal;
-      overflow: visible;
-      text-overflow: clip;
-    }
-
-    /* ✅ Data cells default to compact single-line with ellipsis */
-    td:not(:first-child) {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* allow multi-line only where needed */
-    td.wrap {
-      white-space: normal !important;
-      overflow: visible !important;
-      text-overflow: clip !important;
-    }
-
     a {
       color: #007bff;
       font-weight: bold;
@@ -61,7 +29,7 @@
 
     /* Debug line (hidden unless ?debug=1) */
     #dbg {
-      width: 70%;
+      width: 60%;
       margin: 6px auto 0 auto;
       font-family: Arial, sans-serif;
       font-size: 13px;
@@ -70,7 +38,7 @@
     }
 
     /* Progress bars */
-    .lc-wrap { display: flex; flex-direction: column; gap: 6px; white-space: normal; }
+    .lc-wrap { display: flex; flex-direction: column; gap: 6px; }
     .lc-num  { font-weight: 600; }
     .prog {
       height: 12px;
@@ -92,92 +60,96 @@
   <h2 id="pageTitle" style="text-align:center;">ESS PRODUCTION</h2>
   <div id="dbg"></div>
 
-  <!-- LOT LOOKUP (Tags Sheet + compare vs LOT NUMBER row in table) -->
-  <div id="lotBox" style="display:none; width:70%; margin:10px auto 0 auto; font-family:Arial,sans-serif;">
-    <div style="border:1px solid #ccc; border-radius:8px; padding:12px;">
-      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-        <div style="font-weight:700; width:120px;">ESS TAG</div>
-        <input id="tagLookup" placeholder="Scan ESS Tag" style="padding:8px; font-size:16px; flex:1; min-width:220px;" />
-        <button id="tagLookupBtn" style="padding:9px 14px; font-size:16px; font-weight:700; cursor:pointer;">
-          LOOKUP
-        </button>
+<!-- LOT LOOKUP (Tags Sheet + compare vs LOT NUMBER row in table) -->
+<div id="lotBox" style="display:none; width:60%; margin:10px auto 0 auto; font-family:Arial,sans-serif;">
+  <div style="border:1px solid #ccc; border-radius:8px; padding:12px;">
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <div style="font-weight:700; width:120px;">ESS TAG</div>
+      <input id="tagLookup" placeholder="Scan ESS Tag" style="padding:8px; font-size:16px; flex:1; min-width:220px;" />
+      <button id="tagLookupBtn" style="padding:9px 14px; font-size:16px; font-weight:700; cursor:pointer;">
+        LOOKUP
+      </button>
+    </div>
+
+    <div id="lotStatus" style="margin-top:10px; font-size:13px; color:#555;"></div>
+
+    <!-- Action buttons -->
+    <div id="lotActions" style="display:none; margin-top:10px; gap:10px;">
+      <button id="lotEditBtn" style="padding:9px 14px; font-size:16px; font-weight:700; cursor:pointer;">
+        EDIT
+      </button>
+      <button id="lotEndBtn" style="padding:9px 14px; font-size:16px; font-weight:700; cursor:pointer; color:#b00020;">
+        END
+      </button>
+    </div>
+
+    <!-- EDIT PANEL -->
+    <div id="lotEditPanel" style="display:none; margin-top:12px; border:1px solid #ddd; border-radius:8px; padding:12px;">
+      <div style="font-weight:700; margin-bottom:8px;">Edit Tag Record (Tags tab)</div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
+        <div style="font-weight:700; width:120px;">TAG ID</div>
+        <input id="edit_tag" readonly style="padding:8px; font-size:16px; flex:1; background:#f2f2f2;" />
       </div>
 
-      <div id="lotStatus" style="margin-top:10px; font-size:13px; color:#555;"></div>
-
-      <div id="lotActions" style="display:none; margin-top:10px; gap:10px;">
-        <button id="lotEditBtn" style="padding:9px 14px; font-size:16px; font-weight:700; cursor:pointer;">
-          EDIT
-        </button>
-        <button id="lotEndBtn" style="padding:9px 14px; font-size:16px; font-weight:700; cursor:pointer; color:#b00020;">
-          END
-        </button>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
+        <div style="font-weight:700; width:120px;">LOT ID</div>
+        <input id="edit_lot" readonly style="padding:8px; font-size:16px; flex:1; background:#f2f2f2;" />
       </div>
 
-      <div id="lotEditPanel" style="display:none; margin-top:12px; border:1px solid #ddd; border-radius:8px; padding:12px;">
-        <div style="font-weight:700; margin-bottom:8px;">Edit Tag Record (Tags tab)</div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
-          <div style="font-weight:700; width:120px;">TAG ID</div>
-          <input id="edit_tag" readonly style="padding:8px; font-size:16px; flex:1; background:#f2f2f2;" />
-        </div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
-          <div style="font-weight:700; width:120px;">LOT ID</div>
-          <input id="edit_lot" readonly style="padding:8px; font-size:16px; flex:1; background:#f2f2f2;" />
-        </div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
-          <div style="font-weight:700; width:120px;">LOT QTY</div>
-          <input id="edit_qty" style="padding:8px; font-size:16px; flex:1;" />
-        </div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
-          <div style="font-weight:700; width:120px;">PRODUCT</div>
-          <input id="edit_product" style="padding:8px; font-size:16px; flex:1;" />
-        </div>
-
-        <div style="display:flex; gap:10px; margin-top:10px;">
-          <button id="edit_save" style="padding:9px 14px; font-size:16px; font-weight:700; cursor:pointer;">SAVE CHANGES</button>
-          <button id="edit_cancel" style="padding:9px 14px; font-size:16px; font-weight:700; cursor:pointer;">CANCEL</button>
-        </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
+        <div style="font-weight:700; width:120px;">LOT QTY</div>
+        <input id="edit_qty" style="padding:8px; font-size:16px; flex:1;" />
       </div>
 
-      <div id="lotEndPanel" style="display:none; margin-top:12px; border:1px solid #ddd; border-radius:8px; padding:12px;">
-        <div style="font-weight:700; margin-bottom:8px;">End Step (save to STEPS tab)</div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
+        <div style="font-weight:700; width:120px;">PRODUCT</div>
+        <input id="edit_product" style="padding:8px; font-size:16px; flex:1;" />
+      </div>
 
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
-          <div style="font-weight:700; width:120px;">IN</div>
-          <input id="end_in" readonly style="padding:8px; font-size:16px; flex:1; background:#f2f2f2;" />
-        </div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
-          <div style="font-weight:700; width:120px;">STEP</div>
-          <input id="end_step" readonly style="padding:8px; font-size:16px; flex:1; background:#f2f2f2;" />
-        </div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
-          <div style="font-weight:700; width:120px;">BIN 1</div>
-          <input id="end_bin1" inputmode="numeric" style="padding:8px; font-size:16px; flex:1;" />
-        </div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
-          <div style="font-weight:700; width:120px;">BIN 2</div>
-          <input id="end_bin2" inputmode="numeric" style="padding:8px; font-size:16px; flex:1;" />
-        </div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
-          <div style="font-weight:700; width:120px;">REJECT</div>
-          <input id="end_rej" inputmode="numeric" style="padding:8px; font-size:16px; flex:1;" />
-        </div>
-
-        <div style="display:flex; gap:10px; margin-top:10px;">
-          <button id="end_save" style="padding:9px 14px; font-size:16px; font-weight:700; cursor:pointer;">SAVE</button>
-          <button id="end_cancel" style="padding:9px 14px; font-size:16px; font-weight:700; cursor:pointer;">CANCEL</button>
-        </div>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button id="edit_save" style="padding:9px 14px; font-size:16px; font-weight:700; cursor:pointer;">SAVE CHANGES</button>
+        <button id="edit_cancel" style="padding:9px 14px; font-size:16px; font-weight:700; cursor:pointer;">CANCEL</button>
       </div>
     </div>
+
+    <!-- END PANEL -->
+    <div id="lotEndPanel" style="display:none; margin-top:12px; border:1px solid #ddd; border-radius:8px; padding:12px;">
+      <div style="font-weight:700; margin-bottom:8px;">End Step (save to STEPS tab)</div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
+        <div style="font-weight:700; width:120px;">IN</div>
+        <input id="end_in" readonly style="padding:8px; font-size:16px; flex:1; background:#f2f2f2;" />
+      </div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
+        <div style="font-weight:700; width:120px;">STEP</div>
+        <input id="end_step" readonly style="padding:8px; font-size:16px; flex:1; background:#f2f2f2;" />
+      </div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
+        <div style="font-weight:700; width:120px;">BIN 1</div>
+        <input id="end_bin1" inputmode="numeric" style="padding:8px; font-size:16px; flex:1;" />
+      </div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
+        <div style="font-weight:700; width:120px;">BIN 2</div>
+        <input id="end_bin2" inputmode="numeric" style="padding:8px; font-size:16px; flex:1;" />
+      </div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px;">
+        <div style="font-weight:700; width:120px;">REJECT</div>
+        <input id="end_rej" inputmode="numeric" style="padding:8px; font-size:16px; flex:1;" />
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button id="end_save" style="padding:9px 14px; font-size:16px; font-weight:700; cursor:pointer;">SAVE</button>
+        <button id="end_cancel" style="padding:9px 14px; font-size:16px; font-weight:700; cursor:pointer;">CANCEL</button>
+      </div>
+    </div>
+
   </div>
+</div>
 
   <script>
     const params = new URLSearchParams(window.location.search);
@@ -200,6 +172,26 @@
       const el = document.getElementById("lotBox");
       if (el) el.style.display = on ? "" : "none";
     }
+
+    function shouldShowTagBoxFromTable(rows) {
+      if (!showTagIfPresent) return false;
+      if (!rows) return false;
+
+      const lotRow = (rows || []).find(r => norm(r?.[0]) === "LOT NUMBER");
+      if (!lotRow) return false;
+
+      for (let c = 1; c < lotRow.length; c++) {
+        const v = String(lotRow[c] ?? "").trim();
+        if (v && v.toUpperCase() !== "NA") return true;
+      }
+      return false;
+    }
+
+    // ===== TAGS API (Apps Script Web App) =====
+    const TAGS_API_URL =
+      "https://script.google.com/macros/s/AKfycbytwPIElO5czOhnY5wmDUnQMCltrxApfADq_C2131TjY7uo8iFbVUafTAHJAIJTYjEjSw/exec";
+
+    function $(id){ return document.getElementById(id); }
 
     let lastCSVRows = null;
     let lotLookupCtx = null;
@@ -228,34 +220,17 @@
       return lines.map(line => line.split(delim));
     }
 
-    function shouldShowTagBoxFromTable(rows) {
-      if (!showTagIfPresent) return false;
-      if (!rows) return false;
-
-      const lotRow = (rows || []).find(r => norm(r?.[0]) === "LOT NUMBER");
-      if (!lotRow) return false;
-
-      for (let c = 1; c < lotRow.length; c++) {
-        const v = String(lotRow[c] ?? "").trim();
-        if (v && v.toUpperCase() !== "NA") return true;
-      }
-      return false;
-    }
-
     function cleanUrl_(s) {
       return String(s || "")
         .replace(/[\s\u200B-\u200D\uFEFF]/g, "")
         .trim();
     }
 
-    const TAGS_API_URL =
-      "https://script.google.com/macros/s/AKfycbytwPIElO5czOhnY5wmDUnQMCltrxApfADq_C2131TjY7uo8iFbVUafTAHJAIJTYjEjSw/exec";
-
-    function $(id){ return document.getElementById(id); }
-
     async function tagsApiGet(action, params = {}) {
       const base = cleanUrl_(TAGS_API_URL);
-      if (!base.startsWith("http")) throw new Error("TAGS_API_URL missing/invalid: " + base);
+      if (!base.startsWith("http")) {
+        throw new Error("TAGS_API_URL missing/invalid: " + base);
+      }
 
       const qp = new URLSearchParams({ action, ...params }).toString();
       const url = base + (base.includes("?") ? "&" : "?") + qp;
@@ -273,7 +248,9 @@
 
     async function tagsApiPost(payload) {
       const base = cleanUrl_(TAGS_API_URL);
-      if (!base.startsWith("http")) throw new Error("TAGS_API_URL missing/invalid: " + base);
+      if (!base.startsWith("http")) {
+        throw new Error("TAGS_API_URL missing/invalid: " + base);
+      }
 
       const res = await fetch(base, {
         method: "POST",
@@ -292,11 +269,14 @@
       return json;
     }
 
+    // ---- Date helpers (for ESTIMATED FINISH) ----
     function parseDateTimeLocal(s) {
       const raw = (s || "").toString().trim();
       if (!raw) return null;
+
       let x = raw.replace(" ", "T");
       x = x.replace(/\.(\d{3})\d+/, ".$1");
+
       const d = new Date(x);
       return Number.isNaN(d.getTime()) ? null : d;
     }
@@ -304,6 +284,7 @@
     function fmtDateTime(d) {
       return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
     }
+    // --------------------------------------------
 
     async function loadCSV() {
       try {
@@ -329,12 +310,14 @@
 
         showTagBox(shouldShowTagBoxFromTable(rows));
 
+        // STATUS per column
         const statusRow = rows.find(r => norm(r[0]) === "STATUS") || [];
         const statusByCol = {};
         for (let c = 1; c < statusRow.length; c++) {
           statusByCol[c] = (statusRow[c] || "").toString().trim().toLowerCase();
         }
 
+        // TOTAL IN per column (for LOADING COUNTS progress)
         const totalInRow = rows.find(r => norm(r[0]) === "TOTAL IN") || [];
         const totalInByCol = {};
         for (let c = 1; c < totalInRow.length; c++) {
@@ -342,8 +325,10 @@
           if (v !== null) totalInByCol[c] = v;
         }
 
+        // TOTAL row (for AUTO1 / TOTAL progress, AUTO2 / TOTAL progress)
         const totalRow = rows.find(r => norm(r[0]) === "TOTAL") || [];
 
+        // Freeze numeric values when STATUS=error for that column
         const freezeLabels = new Set(["TOTAL IN", "LOADING COUNTS", "TOTAL", "AUTO1", "AUTO2", "AUTO3"]);
         if (prevRowsByLabel) {
           for (const r of rows) {
@@ -364,6 +349,7 @@
           }
         }
 
+        // ===== rows is FINAL now (after freeze) =====
         lastCSVRows = rows;
 
         function findLastRow(rows, label) {
@@ -413,29 +399,22 @@
         const insertAt = idxTotalIn >= 0 ? idxTotalIn + 1 : rows.length;
         rows.splice(insertAt, 0, estFinishRow);
 
+        // Precompute autoSum (AUTO1+AUTO2+AUTO3) per column
         const autoSumByCol = {};
         const maxCols = Math.max(...rows.map(r => r.length));
         for (let c = 1; c < maxCols; c++) {
           autoSumByCol[c] = sumAutosForCol(rows, c);
         }
 
+        // Build table
         const table = document.createElement("table");
 
-        /* ✅ widths: first column bigger, remaining equal
-           This is the part that fixes “last column wider” without wrecking labels. */
-        const headerRow = rows[0] || [];
-        const colCount = Math.max(1, headerRow.length);
+        // ✅ Equal-width columns (fixes last column being wider)
+        const colCount = Math.max(...rows.map(r => r.length), 1);
         const colgroup = document.createElement("colgroup");
-
-        const col0 = document.createElement("col");
-        col0.style.width = "22%";      // <-- was 14% (too skinny)
-        colgroup.appendChild(col0);
-
-        const remaining = Math.max(1, colCount - 1);
-        const w = (78 / remaining);
-        for (let i = 0; i < remaining; i++) {
+        for (let i = 0; i < colCount; i++) {
           const col = document.createElement("col");
-          col.style.width = w.toFixed(3) + "%";
+          col.style.width = (100 / colCount) + "%";
           colgroup.appendChild(col);
         }
         table.appendChild(colgroup);
@@ -456,12 +435,14 @@
             let cellContent = (cell ?? "").toString();
             const c = cellContent.trim().toUpperCase();
 
+            // links.html behavior: TESTER header links in links mode
             if (isHeader && c === "TESTER") {
               cellContent = showLinks
-                ? `<a href="https://connect.raspberrypi.com/devices" target="_blank">TESTER</a>`
+                ? `<a href="https://connect.raspberrypi.com/devices/60a5a481-6e1a-43b3-8fd6-95b26e95aca0" target="_blank">TESTER</a>`
                 : "TESTER";
             }
 
+            // Handler links (non-header only)
             if (!isHeader) {
               if (c === "CHROMA") {
                 cellContent = showLinks
@@ -485,11 +466,13 @@
               }
             }
 
+            // VNC links
             if (showLinks && c === "AP-1")   cellContent = `<a href="vnc://AP-1">AP-1</a>`;
             if (showLinks && c === "AP-2")   cellContent = `<a href="vnc://AP-2">AP-2</a>`;
             if (showLinks && c === "S100_1") cellContent = `<a href="vnc://S100-1">S100_1</a>`;
             if (showLinks && c === "S100_2") cellContent = `<a href="vnc://S100-2">S100_2</a>`;
 
+            // LOADING COUNTS progress (LOADING COUNTS / TOTAL IN)
             if (!isHeader && rowLabel === "LOADING COUNTS" && colIndex > 0) {
               const loading = toInt(cell);
               const totalIn = totalInByCol[colIndex];
@@ -506,6 +489,7 @@
               }
             }
 
+            // AUTO1 progress (AUTO1 / TOTAL)
             if (!isHeader && (rowLabel === "AUTO1" || rowLabel === "AUTO 1") && colIndex > 0) {
               const auto1 = toInt(cell);
               const total = toInt(totalRow[colIndex]);
@@ -522,6 +506,7 @@
               }
             }
 
+            // AUTO2 progress (AUTO2 / TOTAL)
             if (!isHeader && (rowLabel === "AUTO2" || rowLabel === "AUTO 2") && colIndex > 0) {
               const auto2 = toInt(cell);
               const total = toInt(totalRow[colIndex]);
@@ -541,11 +526,7 @@
             const cellEl = document.createElement(isHeader ? "th" : "td");
             cellEl.innerHTML = cellContent;
 
-            // Only TEST STEP should wrap in the data columns
-            if (!isHeader && rowLabel === "TEST STEP" && colIndex > 0) {
-              cellEl.classList.add("wrap");
-            }
-
+            // First column styling
             if (colIndex === 0) {
               cellEl.style.backgroundColor = isHeader ? "#2c3e50" : "#dff0d8";
               if (isHeader) {
@@ -554,11 +535,13 @@
               }
             }
 
+            // Tester/Handler row highlight
             if (isTesterOrHandlerRow && !isHeader) {
               cellEl.style.backgroundColor = "#fef2d0";
               cellEl.style.fontWeight = "bold";
             }
 
+            // Status colors
             if (!isHeader) {
               const st = (cell || "").toString().trim().toLowerCase();
               if (st === "running") { cellEl.style.color = "green"; cellEl.style.fontWeight = "bold"; }
@@ -567,6 +550,7 @@
               if (st === "maint")   { cellEl.style.color = "blue"; cellEl.style.fontWeight = "bold"; }
             }
 
+            // ===== Number checks (make cell red if violated) =====
             if (!isHeader && colIndex > 0) {
               const autoSum = autoSumByCol[colIndex] || 0;
 
@@ -605,13 +589,16 @@
           table.appendChild(tr);
         });
 
+        // Replace old table only after building new one
         const old = document.querySelector("table");
         if (old) old.remove();
         document.body.appendChild(table);
 
+        // Move the ESS TAG block under the table
         const lotBox = document.getElementById("lotBox");
         if (lotBox) document.body.appendChild(lotBox);
 
+        // Update cache AFTER successful render
         const newPrev = {};
         for (const r of rows) {
           const label = norm(r[0]);
@@ -652,6 +639,7 @@
     function findMatchingColsForLot(rows, lotId) {
       const lotRow = findRowByLabel(rows, "LOT NUMBER");
       if (!lotRow) return [];
+
       const want = norm(lotId);
       const cols = [];
       for (let c = 1; c < lotRow.length; c++) {
@@ -666,28 +654,40 @@
       return (stepRow[colIndex] || "").toString().trim();
     }
 
-    function toInt0(x) {
-      const n = parseInt(String(x ?? "").replace(/[^\d-]/g, ""), 10);
-      return Number.isFinite(n) ? n : 0;
-    }
-
     async function onTagLookup() {
       hideLotPanels();
       lotLookupCtx = null;
 
       const tag = $("tagLookup").value.trim();
-      if (!tag) { showLotStatus("Please scan an ESS TAG.", true); return; }
-      if (!lastCSVRows) { showLotStatus("Table not loaded yet. Wait 1–2 seconds then try again.", true); return; }
+      if (!tag) {
+        showLotStatus("Please scan an ESS TAG.", true);
+        return;
+      }
+
+      if (!lastCSVRows) {
+        showLotStatus("Table not loaded yet. Wait 1–2 seconds then try again.", true);
+        return;
+      }
 
       let out;
-      try { out = await tagsApiGet("lookup", { tag }); }
-      catch (e) { showLotStatus(`Tags API error: ${e.message}`, true); return; }
+      try {
+        out = await tagsApiGet("lookup", { tag });
+      } catch (e) {
+        showLotStatus(`Tags API error: ${e.message}`, true);
+        return;
+      }
 
-      if (!out.found) { showLotStatus(`Tag not found in Tags sheet: ${tag}`, true); return; }
+      if (!out.found) {
+        showLotStatus(`Tag not found in Tags sheet: ${tag}`, true);
+        return;
+      }
 
       const lotId = String(out.data.LOT_ID || "").trim();
       const matchedCols = findMatchingColsForLot(lastCSVRows, lotId);
-      if (matchedCols.length === 0) { showLotStatus(`LOT not found in table (LOT NUMBER): ${lotId}`, true); return; }
+      if (matchedCols.length === 0) {
+        showLotStatus(`LOT not found in table (LOT NUMBER): ${lotId}`, true);
+        return;
+      }
 
       const step = getStepForCol(lastCSVRows, matchedCols[0]);
 
@@ -739,6 +739,11 @@
       }
     }
 
+    function toInt0(x) {
+      const n = parseInt(String(x ?? "").replace(/[^\d-]/g, ""), 10);
+      return Number.isFinite(n) ? n : 0;
+    }
+
     async function saveEditLot() {
       if (!lotLookupCtx) return;
 
@@ -787,75 +792,3 @@
           product,
           step,
           in_qty: inQty,
-          bin1,
-          bin2,
-          reject: rej
-        });
-      } catch (e) {
-        showLotStatus(`END save failed: ${e.message}`, true);
-        return;
-      }
-
-      const nextRaw = prompt("Next step? RT1, RT2, BIN1_70C_FT1, BIN2_25C_FT1 (or cancel to skip)", "");
-      if (nextRaw === null) {
-        showLotStatus("Saved END to STEPS ✅ (skipped next step)", false);
-        $("lotEndPanel").style.display = "none";
-        return;
-      }
-
-      const nextStep = String(nextRaw).trim();
-      const a = nextStep.toUpperCase();
-
-      let newQty = null;
-      if (a.startsWith("RT")) newQty = rej;
-      else if (a.startsWith("BIN1")) newQty = bin1;
-      else if (a.startsWith("BIN2")) newQty = bin2;
-
-      if (newQty === null) {
-        showLotStatus(`Saved END to STEPS ✅ (next step not recognized: "${nextStep}")`, true);
-        $("lotEndPanel").style.display = "none";
-        return;
-      }
-
-      try {
-        await tagsApiPost({
-          action: "update",
-          tag,
-          lot,
-          qty: String(newQty),
-          product
-        });
-
-        lotLookupCtx.LOT_QTY = String(newQty);
-        $("end_in").value = String(newQty);
-
-        showLotStatus(`Saved END ✅ | Next="${nextStep}" | New LOT_QTY=${newQty}`, false);
-        $("lotEndPanel").style.display = "none";
-      } catch (e) {
-        showLotStatus(`Saved END ✅ but failed to update Tags LOT_QTY: ${e.message}`, true);
-      }
-    }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      $("tagLookupBtn").onclick = () => onTagLookup();
-      $("tagLookup").addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter") onTagLookup();
-      });
-
-      $("lotEditBtn").onclick = () => openEditLot();
-      $("lotEndBtn").onclick  = () => openEndLot();
-
-      $("edit_save").onclick   = () => saveEditLot();
-      $("edit_cancel").onclick = () => { $("lotEditPanel").style.display = "none"; };
-
-      $("end_save").onclick    = () => saveEndStep();
-      $("end_cancel").onclick  = () => { $("lotEndPanel").style.display = "none"; };
-    });
-
-    window.addEventListener("load", () => {
-      loadCSV();
-      setInterval(loadCSV, 60000);
-    });
-  </script>
-</body>
-</html>
