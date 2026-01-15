@@ -464,6 +464,19 @@
         // Build table
         const table = document.createElement("table");
 
+        // ✅ Make all columns the same width (fix last column wider)
+        const headerRow = rows[0] || [];
+        const colCount = Math.max(...rows.map(r => r.length), headerRow.length, 1);
+        
+        const colgroup = document.createElement("colgroup");
+        for (let i = 0; i < colCount; i++) {
+          const col = document.createElement("col");
+          col.style.width = (100 / colCount) + "%";
+          colgroup.appendChild(col);
+        }
+        table.appendChild(colgroup);
+
+        
         rows.forEach((row, rowIndex) => {
           const nonEmptyCount = row.filter(cell => {
             const cc = norm(cell);
