@@ -468,16 +468,31 @@
 
         // ✅ Make all columns the same width (fix last column wider)
         const headerRow = rows[0] || [];
-        const colCount = Math.max(...rows.map(r => r.length), headerRow.length, 1);
+
+        // ✅ Fixed layout + controlled widths:
+        // Make first column (row labels) wider so it doesn't wrap,
+        // keep remaining columns equal so AP-2 isn't wider.
+        const colCount = Math.max(...rows.map(r => r.length), 1);
+        const dataCols = Math.max(1, colCount - 1);
+        
+        const firstPct = 18;                 // try 18–22 if you want even less wrapping
+        const eachPct = (100 - firstPct) / dataCols;
         
         const colgroup = document.createElement("colgroup");
-        for (let i = 0; i < colCount; i++) {
+        
+        // First (label) column
+        const c0 = document.createElement("col");
+        c0.style.width = firstPct + "%";
+        colgroup.appendChild(c0);
+        
+        // Data columns equal width
+        for (let i = 0; i < dataCols; i++) {
           const col = document.createElement("col");
-          col.style.width = (100 / colCount) + "%";
+          col.style.width = eachPct + "%";
           colgroup.appendChild(col);
         }
+        
         table.appendChild(colgroup);
-
         
         rows.forEach((row, rowIndex) => {
           const nonEmptyCount = row.filter(cell => {
