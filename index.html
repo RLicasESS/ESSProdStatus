@@ -169,7 +169,41 @@
     const CSV_URL = "./ESSProd.csv";
 
     const showTagIfPresent = params.get("tag") === "1";
+
+    function equalizeLastColumn(table) {
+      if (!table) return;
     
+      const headerRow = table.querySelector("tr");
+      if (!headerRow) return;
+    
+      const heads = Array.from(headerRow.children); // th/td in first row
+      if (heads.length < 3) return; // need at least label + 2 cols
+    
+      // Column indexes:
+      // 0 = left label column ("TESTER", "PRODUCT", etc.)
+      // 1..last = data columns (HP-2, S100_1, ..., AP-2)
+      const lastIdx = heads.length - 1;
+    
+      // Measure widths of columns 1..lastIdx-1 (exclude label col and last col)
+      const widths = [];
+      for (let i = 1; i <= lastIdx - 1; i++) {
+        const w = heads[i].getBoundingClientRect().width;
+        if (w > 0) widths.push(w);
+      }
+      if (!widths.length) return;
+    
+      const avg = widths.reduce((a, b) => a + b, 0) / widths.length;
+    
+      // Apply avg width to the last column cells (th + all tds in that column)
+      for (const row of Array.from(table.rows)) {
+        const cell = row.cells[lastIdx];
+        if (cell) {
+          cell.style.width = avg.toFixed(1) + "px";
+          cell.style.maxWidth = avg.toFixed(1) + "px";
+        }
+      }
+    }
+
     // Hide/Show helpers
     function showTagBox(on) {
       const el = document.getElementById("lotBox");
@@ -302,6 +336,12 @@
     }
     // --------------------------------------------
 
+    window.addEventListener("resize", () => {
+      const t = document.querySelector("table");
+      if (t) requestAnimationFrame(() => equalizeLastColumn(t));
+    });
+
+    
     async function loadCSV() {
       try {
         dbg("Loading CSV…");
@@ -638,7 +678,9 @@
         const old = document.querySelector("table");
         if (old) old.remove();
         document.body.appendChild(table);
-        
+        // Let the browser lay out first, then clamp last column to avg width
+        requestAnimationFrame(() => equalizeLastColumn(table));
+
         // ✅ Move the ESS TAG block under the table
         const lotBox = document.getElementById("lotBox");
         if (lotBox) document.body.appendChild(lotBox);
