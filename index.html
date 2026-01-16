@@ -6,10 +6,9 @@
   <style>
     table {
       border-collapse: collapse;
-      width: 60%;
+      width: 70%;
       margin: 20px auto;
       font-family: Arial, sans-serif;
-      table-layout: fixed;
     }
     th, td {
       border: 1px solid #aaa;
@@ -22,6 +21,12 @@
       color: white;
       font-weight: bold;
     }
+    td:first-child, th:first-child {
+      word-break: normal;
+      overflow-wrap: normal;
+      white-space: normal;
+    }
+
     a {
       color: #007bff;
       font-weight: bold;
@@ -31,7 +36,7 @@
 
     /* Debug line (hidden unless ?debug=1) */
     #dbg {
-      width: 60%;
+      width: 70%;
       margin: 6px auto 0 auto;
       font-family: Arial, sans-serif;
       font-size: 13px;
@@ -63,7 +68,7 @@
   <div id="dbg"></div>
 
 <!-- LOT LOOKUP (Tags Sheet + compare vs LOT NUMBER row in table) -->
-<div id="lotBox" style="display:none; width:60%; margin:10px auto 0 auto; font-family:Arial,sans-serif;">
+<div id="lotBox" style="display:none; width:70%; margin:10px auto 0 auto; font-family:Arial,sans-serif;">
   <div style="border:1px solid #ccc; border-radius:8px; padding:12px;">
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
       <div style="font-weight:700; width:120px;">ESS TAG</div>
@@ -466,6 +471,27 @@
         // Build table
         const table = document.createElement("table");
 
+        // ✅ Keep original table behavior, but force equal DATA column widths
+        const colCount = Math.max(...rows.map(r => r.length), 1);
+        const dataCols = Math.max(1, colCount - 1);
+        
+        const colgroup = document.createElement("colgroup");
+        
+        // First column (labels) - keep comfortable so words don't split
+        const c0 = document.createElement("col");
+        c0.style.width = "140px";      // adjust: 120–170px
+        colgroup.appendChild(c0);
+        
+        // Remaining columns (data) equal width
+        for (let i = 0; i < dataCols; i++) {
+          const col = document.createElement("col");
+          col.style.width = `${(100 / dataCols).toFixed(3)}%`;
+          colgroup.appendChild(col);
+        }
+        
+        table.appendChild(colgroup);
+
+        
         // ✅ Make all columns the same width (fix last column wider)
         const headerRow = rows[0] || [];
 
