@@ -618,15 +618,32 @@
               cellEl.style.fontWeight = "bold";
             }
 
-            // Status colors (apply to cell even if link inside)
-            if (!isHeader && rowLabel === "STATUS") {
+            if (!isHeader && rowLabel === "STATUS" && colIndex > 0) {
               const st = (cell || "").toString().trim().toLowerCase();
-              if (st === "running") { cellEl.style.color = "green"; cellEl.style.fontWeight = "bold"; }
-              if (st === "error")   { cellEl.style.color = "red"; cellEl.style.fontWeight = "bold"; }
-              if (st === "stopped") { cellEl.style.color = "goldenrod"; cellEl.style.fontWeight = "bold"; }
-              if (st === "maint")   { cellEl.style.color = "blue"; cellEl.style.fontWeight = "bold"; }
+            
+              if (st === "running") {
+                cellEl.style.color = "green";
+                cellEl.style.fontWeight = "bold";
+                cellEl.style.backgroundColor = "#dff6df"; // light green
+              }
+              if (st === "error") {
+                cellEl.style.color = "red";
+                cellEl.style.fontWeight = "bold";
+                cellEl.style.backgroundColor = "#ffd6d6"; // light red
+              }
+              if (st === "stopped") {
+                cellEl.style.color = "goldenrod";
+                cellEl.style.fontWeight = "bold";
+                cellEl.style.backgroundColor = "#fff3cd"; // light yellow
+              }
+              if (st === "maint") {
+                cellEl.style.color = "blue";
+                cellEl.style.fontWeight = "bold";
+                cellEl.style.backgroundColor = "#d6e6ff"; // light blue
+              }
             }
 
+            
             // ===== Number checks =====
             if (!isHeader && colIndex > 0) {
               const autoSum = autoSumByCol[colIndex] || 0;
