@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Handler Screenshot</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .row { margin: 10px 0; }
+    .pill { display:inline-block; padding:6px 10px; border:1px solid #ccc; border-radius:999px; }
+    #status { color:#444; }
+    #imgWrap { margin-top: 14px; }
+    img { max-width: 100%; border: 1px solid #ccc; border-radius: 10px; }
+    .small { font-size: 12px; color:#666; }
+    button { padding: 8px 12px; font-weight: 700; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <h2>Handler Screenshot</h2>
+
+  <div class="row">
+    <span class="pill">Handler: <b id="hName">?</b></span>
+  </div>
+
+  <div class="row">
+    <button id="btn">Request Latest Screenshot</button>
+    <span id="status" class="row"></span>
+  </div>
+
+  <div id="imgWrap" class="row" style="display:none;">
+    <div class="small" id="imgMeta"></div>
+    <img id="img" alt="Handler screenshot" />
+  </div>
+
+  <script>
+    // === CONFIG ===
+    // This must be a write-capable endpoint (Apps Script Web App /exec) that commits:
+    //   requests/<HANDLER>.request
+    // and returns JSON: { ok: true } on success.
+    const REQUEST_API =
+      "https://script.google.com/macros/s/AKfycbytwPIElO5czOhnY5wmDUnQMCltrxApfADq_C2131TjY7uo8iFbVUafTAHJAIJTYjEjSw/exec";
+
+    const RAW_BASE = "https://raw.githubusercontent.com/rlicasess/ESSProdStatus/main/";
+
+    const params = new URLSearchParams(location.search);
+    const handler = (params.get("handler") || "").trim();
+
+    const hName = document.getElementById("hName");
+    const statusEl = document.getElementById("status");
+    const imgWrap = document.getElementById("imgWrap");
+    const imgEl = document.getElementById("img");
+    const imgMeta = document.getElementById("imgMeta");
+    const btn = document.getElementById("btn");
+
+    function setStatus(s) { statusEl.textContent = s; }
+
+    function safeHandler(h) {
+      // allow: A-Z a-z 0-9 _ -
+      return /^[A-Za-z0-9_-]+$/.test(h) ? h : "";
+    }
+
+    async function apiRequestPng(h) {
+      // POST preferred (no caching/proxies), but GET can work too.
+      const payload = { action: "request_png", handler: h, reason: "github_io" };
+
+      const res = await fetch(REQUEST_API, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+        cache: "no-store",
+      });
+
+      const text = await res.text();
+      let json;
+      try { json = JSON.parse(text); }
+      catch { throw new Error("Non-JSON response: " + text.slice(0, 200)); }
+
+      if (!json.ok) throw new Error(json.error || "request_png failed");
+      return json;
+    }
+
+    async function headOk(url) {
+      // Some hosts block HEAD; raw.githubusercontent.com generally allows it,
+      // but if it fails we fallback to GET.
+      try {
+        const r = await fetch(url, { method: "HEAD", cache: "no-store" });
+        return r.ok;
+      } catch {
+        try {
+          const r2 = await fetch(url, { method: "GET", cache: "no-store" });
+          return r2.ok;
+        } catch {
+          return false;
+        }
+      }
+    }
+
+    async function pollForPng(h, timeoutMs = 60000, intervalMs = 2000) {
+      const start = Date.now();
+      const baseUrl = RAW_BASE + encodeURIComponent(h) + ".png";
+
+      while (Date.now() - start < timeoutMs) {
+        const bust = "v=" + Date.now();
+        const url = baseUrl + "?" + bust;
+
+        setStatus("Waiting for " + h + ".png …");
+
+        const ok = await headOk(baseUrl); // check stable URL
+        if (ok) return url;              // return cache-busted URL for display
+
+        await new Promise(r => setTimeout(r, intervalMs));
+      }
+
+      throw new Error("Timed out waiting for " + h + ".png");
+    }
+
+    async function doFlow() {
+      const h = safeHandler(handler);
+      if (!h) {
+        setStatus("Missing/invalid ?handler= (example: handler_view.html?handler=NS-4)");
+        btn.disabled = true;
+        return;
+      }
+
+      hName.textContent = h;
+
+      btn.disabled = true;
+      imgWrap.style.display = "none";
+
+      try {
+        setStatus("Sending request to ESSTester01…");
+        await apiRequestPng(h);
+
+        const imgUrl = await pollForPng(h, 60000, 2000);
+
+        imgEl.onload = () => {
+          imgWrap.style.display = "";
+          imgMeta.textContent = "Loaded: " + new Date().toLocaleString();
+          setStatus("✅ Latest screenshot loaded.");
+        };
+        imgEl.onerror = () => {
+          setStatus("Image load error (but file might exist). Try again.");
+        };
+        imgEl.src = imgUrl;
+
+      } catch (e) {
+        setStatus("❌ " + (e?.message || String(e)));
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    btn.addEventListener("click", doFlow);
+
+    // Auto-run once on open
+    doFlow();
+  </script>
+</body>
+</html>
