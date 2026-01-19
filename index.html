@@ -20,12 +20,24 @@
       color: white;
       font-weight: bold;
     }
+
+    /* Default links (everything else on the page) */
     a {
       color: #007bff;
       font-weight: bold;
       text-decoration: none;
     }
     a:hover { text-decoration: underline; }
+  
+    /* ✅ Status links must inherit the status color (green/red/etc) */
+    a.statusLink,
+    a.statusLink:visited,
+    a.statusLink:hover,
+    a.statusLink:active {
+      color: inherit !important;     /* inherit td's color */
+      font-weight: inherit !important;
+      text-decoration: underline;     /* looks clickable */
+    }
 
     /* Make status links keep the same color as the STATUS cell */
     td a.statusLink {
