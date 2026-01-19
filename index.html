@@ -27,6 +27,13 @@
     }
     a:hover { text-decoration: underline; }
 
+    /* Make status links keep the same color as the STATUS cell */
+    td a.statusLink {
+      color: inherit !important;
+      font-weight: inherit;
+      text-decoration: underline;   /* or none if you prefer */
+    }
+    
     /* Debug line (hidden unless ?debug=1) */
     #dbg {
       width: 60%;
@@ -566,6 +573,21 @@
               }
             }
 
+            // --- STATUS row: make each status cell clickable, but keep the status color ---
+            if (!isHeader && rowLabel === "STATUS" && colIndex > 0) {
+              // Column header name (AP-1, AP-2, S100_1, CHROMA, NS-3, NS-4, NS-5, etc.)
+              const headerName = ((rows[0] && rows[0][colIndex]) ? rows[0][colIndex] : "").toString().trim();
+            
+              // Only link handlers (edit this list if you want testers too)
+              const isHandler = ["CHROMA", "NS-3", "NS-4", "NS-5"].includes(headerName.toUpperCase());
+            
+              if (isHandler) {
+                // for now, link to the PNG in the repo (we can swap to “request+wait” later)
+                const pngUrl = `./${encodeURIComponent(headerName)}.png?v=${Date.now()}`;
+                cellContent = `<a class="statusLink" href="${pngUrl}" target="_blank" rel="noopener">${cellContent}</a>`;
+              }
+            }
+            
             const cellEl = document.createElement(isHeader ? "th" : "td");
             cellEl.innerHTML = cellContent;
 
