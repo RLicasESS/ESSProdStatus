@@ -363,6 +363,8 @@
 
         const text = await resp.text();
         const rows = parseCSV(text);
+        const lu = (rows.slice().reverse().find(r => norm(r[0]) === "LAST UPDATE") || [])[1];
+        dbg("Fetched CSV. LAST UPDATE col1=" + (lu || ""));
 
         if (!rows.length) {
           dbg("CSV parsed but rows is empty.");
@@ -951,7 +953,7 @@
 
     window.addEventListener("load", () => {
       loadCSV();
-      setInterval(loadCSV, 60000);
+      setInterval(loadCSV, 30000);
     });
   </script>
 </body>
