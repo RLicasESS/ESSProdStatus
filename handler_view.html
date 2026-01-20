@@ -93,29 +93,45 @@
     await pollForPng(handler, 30, 2000);
   }
 
-  async function pollForPng(handler, tries=30, sleepMs=2000) {
+  async function pollForPng(handler, tries = 30, sleepMs = 2000) {
     const base = rawPngUrl(handler);
-
+  
     for (let i = 1; i <= tries; i++) {
+      const url = base + "?v=" + Date.now();
+  
       try {
-        // Use HEAD to avoid downloading the full PNG repeatedly
-        const head = await fetch(base + "?v=" + Date.now(), { method: "HEAD", cache: "no-store" });
+        // 1) Quick existence check
+        const head = await fetch(url, { method: "HEAD", cache: "no-store" });
+  
         if (head.ok) {
-          setMsg(`PNG is available ✅ (try ${i}/${tries})`);
-          setImage(handler, true);
-          return;
+          // 2) Verify the image actually loads (avoids "HEAD ok but image still stale/blocked")
+          const ok = await new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = url;
+          });
+  
+          if (ok) {
+            setMsg(`PNG is available ✅ (try ${i}/${tries})`);
+            setImage(handler, true, url); // pass url if your setImage supports it
+            return;
+          }
+  
+          setMsg(`PNG exists but hasn't propagated yet… (${i}/${tries})`);
+        } else {
+          setMsg(`Waiting for PNG… (${i}/${tries}) [HTTP ${head.status}]`);
         }
       } catch (e) {
-        // ignore transient network errors and continue polling
+        setMsg(`Waiting for PNG… (${i}/${tries}) [network hiccup]`);
       }
-
-      setMsg(`Waiting for PNG… (${i}/${tries})`);
+  
       await new Promise(r => setTimeout(r, sleepMs));
     }
-
+  
     setMsg("Timed out waiting for PNG. It may still be processing on the handler.", true);
   }
-
+  
   // ===== INIT =====
   const handler = handlerFromQuery();
 
