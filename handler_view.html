@@ -23,7 +23,6 @@
 
     <div class="row">
       <button id="btnReq">Request Latest Screenshot</button>
-      <button id="btnReload">Reload Image</button>
     </div>
 
     <div id="msg" class="msg"></div>
@@ -34,6 +33,7 @@
 <script>
   // ===== CONFIG =====
   // Put your screenshot-request Apps Script Web App /exec URL here:
+  // Example: https://script.google.com/macros/s/AAAA.../exec
   const REQUEST_API_URL = "PASTE_YOUR_SCRIPT_EXEC_URL_HERE";
 
   // Where the image will be served from (raw GitHub)
@@ -43,10 +43,12 @@
 
   // ===== HELPERS =====
   const $ = (id) => document.getElementById(id);
+
   function setMsg(s, isErr=false) {
     $("msg").textContent = s || "";
     $("msg").className = "msg" + (isErr ? " err" : "");
   }
+
   function handlerFromQuery() {
     const p = new URLSearchParams(location.search);
     return (p.get("handler") || "").trim();
@@ -59,24 +61,32 @@
   }
 
   async function requestLatest(handler) {
+    if (!handler) return;
     if (!REQUEST_API_URL || !REQUEST_API_URL.startsWith("http")) {
       setMsg("REQUEST_API_URL is not set. Paste your Apps Script /exec URL into handler_view.html.", true);
       return;
     }
 
-    // This calls YOUR Code.gs doGet(e) which writes requests/<handler>.request
+    // Prefer an explicit action so your Code.gs can route cleanly
+    // Your Code.gs should create: requests/<handler>.request
     const url = REQUEST_API_URL
       + (REQUEST_API_URL.includes("?") ? "&" : "?")
-      + "handler=" + encodeURIComponent(handler)
-      + "&reason=" + encodeURIComponent("github_io");
+      + "action=" + encodeURIComponent("request_png")
+      + "&handler=" + encodeURIComponent(handler)
+      + "&reason=" + encodeURIComponent("github_io")
+      + "&ts=" + Date.now();
 
     setMsg("Requesting screenshot…\n" + url);
 
-    const res = await fetch(url, { cache: "no-store" });
-    const txt = await res.text();
+    let txt = "";
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      txt = await res.text();
+    } catch (e) {
+      setMsg("Request failed:\n" + e, true);
+      return;
+    }
 
-    // Your Code.gs returns text like: "OK wrote requests/NS-4.request"
-    // If you changed it to JSON, this still shows it.
     setMsg("Request result:\n" + txt);
 
     // Poll for the PNG to appear/update
@@ -85,18 +95,24 @@
 
   async function pollForPng(handler, tries=30, sleepMs=2000) {
     const base = rawPngUrl(handler);
+
     for (let i = 1; i <= tries; i++) {
       try {
+        // Use HEAD to avoid downloading the full PNG repeatedly
         const head = await fetch(base + "?v=" + Date.now(), { method: "HEAD", cache: "no-store" });
         if (head.ok) {
           setMsg(`PNG is available ✅ (try ${i}/${tries})`);
           setImage(handler, true);
           return;
         }
-      } catch {}
+      } catch (e) {
+        // ignore transient network errors and continue polling
+      }
+
       setMsg(`Waiting for PNG… (${i}/${tries})`);
       await new Promise(r => setTimeout(r, sleepMs));
     }
+
     setMsg("Timed out waiting for PNG. It may still be processing on the handler.", true);
   }
 
@@ -106,13 +122,12 @@
   if (!handler) {
     $("hdr").innerHTML = `<div class="err">Missing handler. Use <code>?handler=NS-4</code></div>`;
     setMsg("No handler specified.", true);
+    $("btnReq").disabled = true;
   } else {
     $("hdr").innerHTML = `Handler: <code>${handler}</code>`;
     setImage(handler, true);
+    $("btnReq").onclick = () => requestLatest(handler);
   }
-
-  $("btnReq").onclick = () => requestLatest(handler);
-  $("btnReload").onclick = () => setImage(handler, true);
 </script>
 
 </body>
