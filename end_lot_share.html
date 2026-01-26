@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>END LOT SHARE</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 14px; }
+    .wrap { max-width: 900px; margin: 0 auto; }
+    h2 { margin: 0 0 10px 0; text-align: center; }
+    .pill { display:inline-block; padding: 8px 12px; border: 1px solid #bbb; border-radius: 999px; font-weight: 800; margin: 4px; }
+    .imgBox { border: 1px solid #ddd; border-radius: 14px; overflow: hidden; background: #fafafa; margin-top: 10px; }
+    img { width: 100%; height: auto; display:block; }
+    .labelBox {
+      margin-top: 10px;
+      border: 2px solid #111; border-radius: 14px; padding: 12px;
+      text-align:center; background:#fff;
+    }
+    .labelLine1 { font-size: 26px; font-weight: 900; }
+    .labelLine2 { font-size: 24px; font-weight: 900; margin-top: 6px; }
+    .labelLine3 { font-size: 24px; font-weight: 900; margin-top: 6px; }
+    .msgBox {
+      margin-top: 10px;
+      border: 1px solid #ccc; border-radius: 14px; padding: 12px;
+      background: #fff;
+      white-space: pre-wrap;
+      font-weight: 800;
+      font-size: 18px;
+    }
+    button{
+      width: 100%;
+      padding: 12px 14px;
+      font-size: 18px;
+      font-weight: 900;
+      border-radius: 14px;
+      border: 1px solid #777;
+      background: #fff;
+      margin-top: 10px;
+    }
+    .sub { font-size: 13px; color:#555; white-space: pre-wrap; margin-top: 8px; }
+    .err { color:#b00020; font-weight:900; white-space:pre-wrap; margin-top: 10px; }
+    canvas { width: 100%; height: auto; border: 1px dashed #bbb; border-radius: 14px; background:#fff; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>END LOT SHARE</h2>
+
+    <div style="text-align:center;">
+      <span class="pill" id="testerPill">Tester: …</span>
+      <span class="pill" id="handlerPill">Handler: …</span>
+      <span class="pill" id="stepPill">Step: …</span>
+    </div>
+
+    <div id="error" class="err" style="display:none;"></div>
+
+    <div class="imgBox"><img id="handlerImg" alt="handler screenshot" /></div>
+
+    <div class="labelBox">
+      <div id="line1" class="labelLine1">…</div>
+      <div id="line2" class="labelLine2">…</div>
+      <div id="line3" class="labelLine3">…</div>
+      <div id="meta" class="sub"></div>
+    </div>
+
+    <div class="msgBox" id="msg">…</div>
+
+    <button id="copyBtn">COPY MESSAGE</button>
+    <button id="renderBtn">RENDER SINGLE IMAGE</button>
+    <button id="downloadBtn">DOWNLOAD IMAGE</button>
+
+    <canvas id="outCanvas"></canvas>
+
+    <div class="sub">
+On iPhone: after COPY, open your group chat → paste → send.
+Or DOWNLOAD IMAGE → share image to the group.
+    </div>
+  </div>
+
+  <script>
+    const CSV_URL = "https://raw.githubusercontent.com/RLicasESS/ESSProdStatus/main/ESSProd.csv";
+    const params = new URLSearchParams(location.search);
+
+    const $ = (id)=>document.getElementById(id);
+    function norm(s){ return String(s ?? "").replace(/\r/g,"").trim().toUpperCase(); }
+    function parseCSV(text){
+      const lines = text.replace(/\r/g,"").trim().split(/\n/);
+      if (!lines.length) return [];
+      const delim = lines[0].includes("\t") ? "\t" : ",";
+      return lines.map(l => l.split(delim));
+    }
+    function findRow(rows, label){
+      const want = norm(label);
+      return (rows || []).find(r => norm(r?.[0]) === want) || null;
+    }
+    function pickFirstExistingRow(rows, labels){
+      for (const lb of labels){
+        const r = findRow(rows, lb);
+        if (r) return r;
+      }
+      return null;
+    }
+    function safeCell(row, c){
+      if (!row) return "";
+      return String(row[c] ?? "").trim();
+    }
+    function findColByTester(rows, tester){
+      const header = rows?.[0] || [];
+      const want = norm(tester);
+      for (let c = 1; c < header.length; c++){
+        if (norm(header[c]) === want) return c;
+      }
+      return -1;
+    }
+    function setErr(msg){
+      $("error").style.display = msg ? "" : "none";
+      $("error").textContent = msg || "";
+    }
+    function nowStamp(){
+      const d = new Date();
+      const pad = (n)=>String(n).padStart(2,"0");
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    const tester = (params.get("tester") || "").trim();
+    const nextStep = (params.get("next") || "").trim();
+
+    let current = { tester, handler:"", lot:"", product:"", step:"", pngUrl:"" };
+
+    function msgText(){
+      const doneLine = `Done ${current.tester} / ${current.step || "(no step)"}`;
+      const nextLine = nextStep ? `Next ${nextStep}` : `Next (not set)`;
+      return doneLine + "\n" + nextLine;
+    }
+
+    async function load(){
+      if (!tester){
+        setErr("Missing tester.\nExample: end_lot_share.html?tester=AP-1&next=RT1");
+        return;
+      }
+
+      $("testerPill").textContent = "Tester: " + tester;
+
+      const resp = await fetch(CSV_URL + (CSV_URL.includes("?") ? "&" : "?") + "v=" + Date.now(), { cache: "no-store" });
+      if (!resp.ok) throw new Error(`CSV fetch failed: ${resp.status} ${resp.statusText}`);
+      const rows = parseCSV(await resp.text());
+      if (!rows.length) throw new Error("CSV parsed empty");
+
+      const col = findColByTester(rows, tester);
+      if (col < 0) throw new Error(`Tester '${tester}' not found in ESSProd.csv header`);
+
+      const handlerRow = pickFirstExistingRow(rows, ["HANDLER"]);
+      const lotRow     = pickFirstExistingRow(rows, ["LOT NUMBER", "LOT", "LOT_ID"]);
+      const prodRow    = pickFirstExistingRow(rows, ["PRODUCT", "PRODUCT NAME", "PRODUCT_NAME"]);
+      const stepRow    = pickFirstExistingRow(rows, ["TEST STEP", "STEP", "CURRENT STEP"]);
+      const tempRow    = pickFirstExistingRow(rows, ["TEMP", "TEMPERATURE", "TEMP C", "TEMP(C)", "TEMP (C)"]);
+
+      current.handler = safeCell(handlerRow, col).toUpperCase();
+      current.lot     = safeCell(lotRow, col);
+      current.product = safeCell(prodRow, col);
+      current.step    = safeCell(stepRow, col);
+
+      const temp = safeCell(tempRow, col);
+
+      $("handlerPill").textContent = "Handler: " + (current.handler || "(missing)");
+      $("stepPill").textContent = "Step: " + (current.step || "(missing)");
+
+      if (current.handler){
+        current.pngUrl = `https://raw.githubusercontent.com/RLicasESS/ESSProdStatus/main/${encodeURIComponent(current.handler)}.png?v=${Date.now()}`;
+        $("handlerImg").src = current.pngUrl;
+      }
+
+      $("line1").textContent = current.product || "(PRODUCT)";
+      let line2 = current.lot || "(LOT)";
+      if (temp && line2 && !/-(\d+(\.\d+)?)C$/i.test(line2) && /C$/i.test(temp)){
+        line2 = `${line2}-${temp.replace(/\s+/g,"")}`;
+      }
+      $("line2").textContent = line2;
+      $("line3").textContent = `${current.tester}-${current.step || "STEP"}`;
+
+      $("meta").textContent = `Loaded: ${nowStamp()}\nNext: ${nextStep || "(not set)"}`;
+      $("msg").textContent = msgText();
+    }
+
+    async function renderCanvas(){
+      setErr("");
+      const img = $("handlerImg");
+      if (!img.src){
+        setErr("No handler image loaded.");
+        return;
+      }
+      if (!img.complete || img.naturalWidth === 0){
+        await new Promise((resolve, reject)=>{ img.onload=resolve; img.onerror=()=>reject(new Error("Image failed to load")); });
+      }
+
+      const W = 1200;
+      const pad = 40;
+      const labelH = 280;
+      const imgMaxH = 700;
+
+      const scale = Math.min(W / img.naturalWidth, imgMaxH / img.naturalHeight);
+      const drawW = Math.round(img.naturalWidth * scale);
+      const drawH = Math.round(img.naturalHeight * scale);
+
+      const canvas = $("outCanvas");
+      const ctx = canvas.getContext("2d");
+      const H = pad + drawH + pad + labelH + pad;
+
+      canvas.width = W;
+      canvas.height = H;
+
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0,0,W,H);
+
+      const x = Math.round((W - drawW)/2);
+      const y = pad;
+      ctx.drawImage(img, x, y, drawW, drawH);
+
+      const boxY = y + drawH + pad;
+      const boxX = pad;
+      const boxW = W - pad*2;
+      const boxH = labelH;
+
+      ctx.strokeStyle = "#111";
+      ctx.lineWidth = 6;
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+      ctx.fillStyle = "#111";
+      ctx.textAlign = "center";
+
+      const l1 = $("line1").textContent || "";
+      const l2 = $("line2").textContent || "";
+      const l3 = $("line3").textContent || "";
+
+      ctx.font = "bold 64px Arial";
+      ctx.fillText(l1, W/2, boxY + 90);
+      ctx.font = "bold 58px Arial";
+      ctx.fillText(l2, W/2, boxY + 160);
+      ctx.font = "bold 58px Arial";
+      ctx.fillText(l3, W/2, boxY + 235);
+    }
+
+    function downloadCanvas(){
+      const canvas = $("outCanvas");
+      if (!canvas.width || !canvas.height){
+        setErr("Render the image first.");
+        return;
+      }
+      const a = document.createElement("a");
+      a.download = `ENDLOT_${current.tester}_${(current.handler||"HANDLER")}_${Date.now()}.png`;
+      a.href = canvas.toDataURL("image/png");
+      a.click();
+    }
+
+    function copyMsg(){
+      const txt = msgText();
+      navigator.clipboard.writeText(txt).catch(() => {
+        setErr("Clipboard copy blocked. Manually select and copy:\n\n" + txt);
+      });
+    }
+
+    $("copyBtn").onclick = () => copyMsg();
+    $("renderBtn").onclick = () => renderCanvas().catch(e=>setErr(String(e.message||e)));
+    $("downloadBtn").onclick = () => downloadCanvas();
+
+    window.addEventListener("load", () => {
+      load().catch(e => setErr(String(e.message || e)));
+    });
+  </script>
+</body>
+</html>
