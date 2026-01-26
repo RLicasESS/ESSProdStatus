@@ -2,86 +2,56 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>END LOT SHARE</title>
+  <title>END LOT</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: Arial, sans-serif; margin: 14px; }
+    body { font-family: Arial, sans-serif; margin: 12px; }
     .wrap { max-width: 900px; margin: 0 auto; }
-    h2 { margin: 0 0 10px 0; text-align: center; }
-    .pill { display:inline-block; padding: 8px 12px; border: 1px solid #bbb; border-radius: 999px; font-weight: 800; margin: 4px; }
-    .imgBox { border: 1px solid #ddd; border-radius: 14px; overflow: hidden; background: #fafafa; margin-top: 10px; }
-    img { width: 100%; height: auto; display:block; }
-    .labelBox {
-      margin-top: 10px;
-      border: 2px solid #111; border-radius: 14px; padding: 12px;
-      text-align:center; background:#fff;
-    }
-    .labelLine1 { font-size: 26px; font-weight: 900; }
-    .labelLine2 { font-size: 24px; font-weight: 900; margin-top: 6px; }
-    .labelLine3 { font-size: 24px; font-weight: 900; margin-top: 6px; }
-    .msgBox {
-      margin-top: 10px;
-      border: 1px solid #ccc; border-radius: 14px; padding: 12px;
-      background: #fff;
-      white-space: pre-wrap;
-      font-weight: 800;
-      font-size: 18px;
-    }
+    .card { border: 1px solid #ddd; border-radius: 16px; padding: 10px; background: #fff; }
     button{
       width: 100%;
-      padding: 12px 14px;
-      font-size: 18px;
+      padding: 14px 16px;
+      font-size: 20px;
       font-weight: 900;
-      border-radius: 14px;
-      border: 1px solid #777;
+      border-radius: 16px;
+      border: 1px solid #666;
       background: #fff;
       margin-top: 10px;
+      cursor: pointer;
     }
-    .sub { font-size: 13px; color:#555; white-space: pre-wrap; margin-top: 8px; }
-    .err { color:#b00020; font-weight:900; white-space:pre-wrap; margin-top: 10px; }
-    canvas { width: 100%; height: auto; border: 1px dashed #bbb; border-radius: 14px; background:#fff; margin-top: 10px; }
+    .sub { font-size: 13px; color:#555; margin-top: 8px; white-space: pre-wrap; }
+    .err { color:#b00020; font-weight:900; margin-top: 10px; white-space: pre-wrap; }
+    canvas { width: 100%; height: auto; border-radius: 16px; background:#fff; }
+    img { display:none; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h2>END LOT SHARE</h2>
+    <div class="card">
+      <!-- Hidden raw screenshot (we draw it into canvas) -->
+      <img id="handlerImg" alt="handler" />
 
-    <div style="text-align:center;">
-      <span class="pill" id="testerPill">Tester: …</span>
-      <span class="pill" id="handlerPill">Handler: …</span>
-      <span class="pill" id="stepPill">Step: …</span>
-    </div>
+      <!-- Final “photo-like” output -->
+      <canvas id="outCanvas"></canvas>
 
-    <div id="error" class="err" style="display:none;"></div>
+      <button id="shareBtn">SHARE</button>
+      <button id="downloadBtn">DOWNLOAD IMAGE</button>
 
-    <div class="imgBox"><img id="handlerImg" alt="handler screenshot" /></div>
-
-    <div class="labelBox">
-      <div id="line1" class="labelLine1">…</div>
-      <div id="line2" class="labelLine2">…</div>
-      <div id="line3" class="labelLine3">…</div>
-      <div id="meta" class="sub"></div>
-    </div>
-
-    <div class="msgBox" id="msg">…</div>
-
-    <button id="copyBtn">COPY MESSAGE</button>
-    <button id="renderBtn">RENDER SINGLE IMAGE</button>
-    <button id="downloadBtn">DOWNLOAD IMAGE</button>
-
-    <canvas id="outCanvas"></canvas>
-
-    <div class="sub">
-On iPhone: after COPY, open your group chat → paste → send.
-Or DOWNLOAD IMAGE → share image to the group.
+      <div id="status" class="sub"></div>
+      <div id="error" class="err" style="display:none;"></div>
     </div>
   </div>
 
   <script>
     const CSV_URL = "https://raw.githubusercontent.com/RLicasESS/ESSProdStatus/main/ESSProd.csv";
+
     const params = new URLSearchParams(location.search);
+    const tester = (params.get("tester") || "").trim();
+    const nextStep = (params.get("next") || "").trim();
 
     const $ = (id)=>document.getElementById(id);
+    function setErr(msg){ $("error").style.display = msg ? "" : "none"; $("error").textContent = msg || ""; }
+    function setStatus(msg){ $("status").textContent = msg || ""; }
     function norm(s){ return String(s ?? "").replace(/\r/g,"").trim().toUpperCase(); }
     function parseCSV(text){
       const lines = text.replace(/\r/g,"").trim().split(/\n/);
@@ -93,17 +63,14 @@ Or DOWNLOAD IMAGE → share image to the group.
       const want = norm(label);
       return (rows || []).find(r => norm(r?.[0]) === want) || null;
     }
-    function pickFirstExistingRow(rows, labels){
+    function pickRow(rows, labels){
       for (const lb of labels){
         const r = findRow(rows, lb);
         if (r) return r;
       }
       return null;
     }
-    function safeCell(row, c){
-      if (!row) return "";
-      return String(row[c] ?? "").trim();
-    }
+    function safeCell(row, c){ return row && c < row.length ? String(row[c] ?? "").trim() : ""; }
     function findColByTester(rows, tester){
       const header = rows?.[0] || [];
       const want = norm(tester);
@@ -112,34 +79,21 @@ Or DOWNLOAD IMAGE → share image to the group.
       }
       return -1;
     }
-    function setErr(msg){
-      $("error").style.display = msg ? "" : "none";
-      $("error").textContent = msg || "";
-    }
-    function nowStamp(){
-      const d = new Date();
-      const pad = (n)=>String(n).padStart(2,"0");
-      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
 
-    const tester = (params.get("tester") || "").trim();
-    const nextStep = (params.get("next") || "").trim();
-
-    let current = { tester, handler:"", lot:"", product:"", step:"", pngUrl:"" };
-
-    function msgText(){
-      const doneLine = `Done ${current.tester} / ${current.step || "(no step)"}`;
+    function msgText(step){
+      const doneLine = `Done ${tester} / ${step || "(no step)"}`;
       const nextLine = nextStep ? `Next ${nextStep}` : `Next (not set)`;
       return doneLine + "\n" + nextLine;
     }
 
-    async function load(){
+    async function loadAndRender(){
+      setErr("");
       if (!tester){
         setErr("Missing tester.\nExample: end_lot_share.html?tester=AP-1&next=RT1");
         return;
       }
 
-      $("testerPill").textContent = "Tester: " + tester;
+      setStatus("Loading…");
 
       const resp = await fetch(CSV_URL + (CSV_URL.includes("?") ? "&" : "?") + "v=" + Date.now(), { cache: "no-store" });
       if (!resp.ok) throw new Error(`CSV fetch failed: ${resp.status} ${resp.statusText}`);
@@ -149,49 +103,41 @@ Or DOWNLOAD IMAGE → share image to the group.
       const col = findColByTester(rows, tester);
       if (col < 0) throw new Error(`Tester '${tester}' not found in ESSProd.csv header`);
 
-      const handlerRow = pickFirstExistingRow(rows, ["HANDLER"]);
-      const lotRow     = pickFirstExistingRow(rows, ["LOT NUMBER", "LOT", "LOT_ID"]);
-      const prodRow    = pickFirstExistingRow(rows, ["PRODUCT", "PRODUCT NAME", "PRODUCT_NAME"]);
-      const stepRow    = pickFirstExistingRow(rows, ["TEST STEP", "STEP", "CURRENT STEP"]);
-      const tempRow    = pickFirstExistingRow(rows, ["TEMP", "TEMPERATURE", "TEMP C", "TEMP(C)", "TEMP (C)"]);
+      const handlerRow = pickRow(rows, ["HANDLER"]);
+      const lotRow     = pickRow(rows, ["LOT NUMBER", "LOT", "LOT_ID"]);
+      const prodRow    = pickRow(rows, ["PRODUCT", "PRODUCT NAME", "PRODUCT_NAME"]);
+      const stepRow    = pickRow(rows, ["TEST STEP", "STEP", "CURRENT STEP"]);
+      const tempRow    = pickRow(rows, ["TEMP", "TEMPERATURE", "TEMP(C)", "TEMP (C)"]);
 
-      current.handler = safeCell(handlerRow, col).toUpperCase();
-      current.lot     = safeCell(lotRow, col);
-      current.product = safeCell(prodRow, col);
-      current.step    = safeCell(stepRow, col);
+      const handler = safeCell(handlerRow, col).toUpperCase();
+      const lot     = safeCell(lotRow, col);
+      const product = safeCell(prodRow, col);
+      const step    = safeCell(stepRow, col);
+      const temp    = safeCell(tempRow, col);
 
-      const temp = safeCell(tempRow, col);
+      if (!handler) throw new Error("HANDLER cell is blank for this tester.");
 
-      $("handlerPill").textContent = "Handler: " + (current.handler || "(missing)");
-      $("stepPill").textContent = "Step: " + (current.step || "(missing)");
+      const pngUrl = `https://raw.githubusercontent.com/RLicasESS/ESSProdStatus/main/${encodeURIComponent(handler)}.png?v=${Date.now()}`;
+      const img = $("handlerImg");
+      img.src = pngUrl;
 
-      if (current.handler){
-        current.pngUrl = `https://raw.githubusercontent.com/RLicasESS/ESSProdStatus/main/${encodeURIComponent(current.handler)}.png?v=${Date.now()}`;
-        $("handlerImg").src = current.pngUrl;
-      }
+      // wait for screenshot image
+      await new Promise((resolve, reject)=>{
+        img.onload = resolve;
+        img.onerror = ()=>reject(new Error("Handler image failed to load: " + pngUrl));
+      });
 
-      $("line1").textContent = current.product || "(PRODUCT)";
-      let line2 = current.lot || "(LOT)";
+      // Build label lines
+      const line1 = product || "(PRODUCT)";
+      let line2 = lot || "(LOT)";
       if (temp && line2 && !/-(\d+(\.\d+)?)C$/i.test(line2) && /C$/i.test(temp)){
         line2 = `${line2}-${temp.replace(/\s+/g,"")}`;
       }
-      $("line2").textContent = line2;
-      $("line3").textContent = `${current.tester}-${current.step || "STEP"}`;
+      const line3 = `${tester}-${step || "STEP"}`;
 
-      $("meta").textContent = `Loaded: ${nowStamp()}\nNext: ${nextStep || "(not set)"}`;
-      $("msg").textContent = msgText();
-    }
-
-    async function renderCanvas(){
-      setErr("");
-      const img = $("handlerImg");
-      if (!img.src){
-        setErr("No handler image loaded.");
-        return;
-      }
-      if (!img.complete || img.naturalWidth === 0){
-        await new Promise((resolve, reject)=>{ img.onload=resolve; img.onerror=()=>reject(new Error("Image failed to load")); });
-      }
+      // Render combined image into canvas
+      const canvas = $("outCanvas");
+      const ctx = canvas.getContext("2d");
 
       const W = 1200;
       const pad = 40;
@@ -202,20 +148,20 @@ Or DOWNLOAD IMAGE → share image to the group.
       const drawW = Math.round(img.naturalWidth * scale);
       const drawH = Math.round(img.naturalHeight * scale);
 
-      const canvas = $("outCanvas");
-      const ctx = canvas.getContext("2d");
       const H = pad + drawH + pad + labelH + pad;
-
       canvas.width = W;
       canvas.height = H;
 
+      // white background
       ctx.fillStyle = "#fff";
       ctx.fillRect(0,0,W,H);
 
+      // screenshot centered
       const x = Math.round((W - drawW)/2);
       const y = pad;
       ctx.drawImage(img, x, y, drawW, drawH);
 
+      // label box
       const boxY = y + drawH + pad;
       const boxX = pad;
       const boxW = W - pad*2;
@@ -228,43 +174,60 @@ Or DOWNLOAD IMAGE → share image to the group.
       ctx.fillStyle = "#111";
       ctx.textAlign = "center";
 
-      const l1 = $("line1").textContent || "";
-      const l2 = $("line2").textContent || "";
-      const l3 = $("line3").textContent || "";
-
       ctx.font = "bold 64px Arial";
-      ctx.fillText(l1, W/2, boxY + 90);
+      ctx.fillText(line1, W/2, boxY + 90);
+
       ctx.font = "bold 58px Arial";
-      ctx.fillText(l2, W/2, boxY + 160);
+      ctx.fillText(line2, W/2, boxY + 160);
+
       ctx.font = "bold 58px Arial";
-      ctx.fillText(l3, W/2, boxY + 235);
+      ctx.fillText(line3, W/2, boxY + 235);
+
+      setStatus(msgText(step));
     }
 
-    function downloadCanvas(){
+    async function shareImage(){
+      setErr("");
       const canvas = $("outCanvas");
-      if (!canvas.width || !canvas.height){
-        setErr("Render the image first.");
-        return;
+      if (!canvas.width) { setErr("Image not ready yet."); return; }
+
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+      if (!blob) { setErr("Failed to create image."); return; }
+
+      const file = new File([blob], `ENDLOT_${tester}.png`, { type: "image/png" });
+      const text = $("status").textContent || "";
+
+      // Web Share (iOS Safari supports this for files on most modern versions)
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ title: "END LOT", text, files: [file] });
+          return;
+        } catch (e) {
+          // user cancelled or share failed
+          setErr("Share cancelled/failed. Use DOWNLOAD IMAGE then share from Photos.");
+          return;
+        }
       }
+
+      // Fallback: show guidance
+      setErr("Your browser can’t share files directly.\nTap DOWNLOAD IMAGE, then share the image from Photos.");
+    }
+
+    function downloadImage(){
+      setErr("");
+      const canvas = $("outCanvas");
+      if (!canvas.width) { setErr("Image not ready yet."); return; }
       const a = document.createElement("a");
-      a.download = `ENDLOT_${current.tester}_${(current.handler||"HANDLER")}_${Date.now()}.png`;
+      a.download = `ENDLOT_${tester}_${Date.now()}.png`;
       a.href = canvas.toDataURL("image/png");
       a.click();
     }
 
-    function copyMsg(){
-      const txt = msgText();
-      navigator.clipboard.writeText(txt).catch(() => {
-        setErr("Clipboard copy blocked. Manually select and copy:\n\n" + txt);
-      });
-    }
-
-    $("copyBtn").onclick = () => copyMsg();
-    $("renderBtn").onclick = () => renderCanvas().catch(e=>setErr(String(e.message||e)));
-    $("downloadBtn").onclick = () => downloadCanvas();
+    $("shareBtn").onclick = () => shareImage();
+    $("downloadBtn").onclick = () => downloadImage();
 
     window.addEventListener("load", () => {
-      load().catch(e => setErr(String(e.message || e)));
+      loadAndRender().catch(e => setErr(String(e.message || e)));
     });
   </script>
 </body>
