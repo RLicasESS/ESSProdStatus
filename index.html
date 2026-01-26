@@ -188,7 +188,7 @@
     (function () {
       const d = new Date();
       const today = d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'2-digit' });
-      const msg = 'DOWN - fixing repo storage, or counts are inaccurate right now';
+      const msg = 'DOWN - fixing repo storage, counts are inaccurate right now';
       const el = document.getElementById('siteStatus');
       if (el) el.textContent = `${today}: ${msg}`;
     })();
