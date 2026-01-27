@@ -6,7 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body { margin: 0; background: #000; }
-    .wrap { max-width: 1200px; margin: 0 auto; padding: 10px; position: relative; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 10px; }
+
     canvas { width: 100%; height: auto; display: block; border-radius: 14px; background: #fff; }
     img { display: none; }
 
@@ -15,17 +16,14 @@
       border-radius: 12px; font-family: Arial, sans-serif; font-weight: 900; white-space: pre-wrap;
     }
 
-    /* QR overlay */
+    /* QR bottom (not overlay) */
     .qrBox {
-      position: absolute;
-      right: 18px;
-      top: 18px;
+      margin: 12px auto 0 auto;
       background: rgba(255,255,255,0.92);
       border-radius: 14px;
-      padding: 10px;
-      box-shadow: 0 6px 22px rgba(0,0,0,0.35);
+      padding: 10px 12px;
       text-align: center;
-      width: 150px;
+      width: 190px;
     }
     .qrLabel {
       font-family: Arial, sans-serif;
@@ -35,37 +33,37 @@
       margin-top: 6px;
       line-height: 1.2;
     }
-    /* QR will render into this div */
     #qrcode { display: inline-block; }
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <div id="error" class="err" style="display:none;"></div>
-
-    <!-- QR overlay (no buttons) -->
-    <div class="qrBox" id="qrWrap" style="display:none;">
-      <div id="qrcode"></div>
-      <div class="qrLabel">SCAN TO OPEN<br>ON PHONE</div>
-    </div>
 
     <!-- hidden image source -->
     <img id="handlerImg" alt="handler" />
 
     <!-- final output (screenshot this) -->
     <canvas id="outCanvas"></canvas>
+
+    <!-- QR at the bottom -->
+    <div class="qrBox" id="qrWrap" style="display:none;">
+      <div id="qrcode"></div>
+      <div class="qrLabel">SCAN TO OPEN<br>ON PHONE</div>
+    </div>
   </div>
 
   <!-- QR library (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
   <script>
-    // Repo URLs
+    // Repo URLs (update to ESSProdStatus2 if/when you switch)
     const CSV_URL  = "https://raw.githubusercontent.com/RLicasESS/ESSProdStatus/main/ESSProd.csv";
     const PNG_BASE = "https://raw.githubusercontent.com/RLicasESS/ESSProdStatus/main/";
 
-    const params  = new URLSearchParams(location.search);
-    const tester  = (params.get("tester") || "").trim();
+    const params   = new URLSearchParams(location.search);
+    const tester   = (params.get("tester") || "").trim();
     const nextStep = (params.get("next") || "").trim(); // optional passthrough
 
     const $ = (id)=>document.getElementById(id);
@@ -107,7 +105,6 @@
       return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
     }
 
-    let qrObj = null;
     function buildShareUrl(){
       // same folder as end_lot.html on GitHub Pages
       const base = location.origin + location.pathname.replace(/[^\/]+$/, "end_lot_share.html");
@@ -121,12 +118,11 @@
       if (!tester) return;
       const url = buildShareUrl();
 
-      // clear previous QR
       $("qrcode").innerHTML = "";
-      qrObj = new QRCode($("qrcode"), {
+      new QRCode($("qrcode"), {
         text: url,
-        width: 128,
-        height: 128,
+        width: 160,
+        height: 160,
         correctLevel: QRCode.CorrectLevel.M
       });
 
@@ -140,12 +136,16 @@
         return;
       }
 
-      // Always show QR (even if CSV/PNG fails, QR can still open phone page)
+      // Show QR immediately (even if data fetch fails)
       renderQR();
 
       // Load CSV
-      const resp = await fetch(CSV_URL + (CSV_URL.includes("?") ? "&" : "?") + "v=" + Date.now(), { cache: "no-store" });
+      const resp = await fetch(
+        CSV_URL + (CSV_URL.includes("?") ? "&" : "?") + "v=" + Date.now(),
+        { cache: "no-store" }
+      );
       if (!resp.ok) throw new Error(`CSV fetch failed: ${resp.status} ${resp.statusText}`);
+
       const rows = parseCSV(await resp.text());
       if (!rows.length) throw new Error("CSV parsed empty");
 
@@ -183,6 +183,7 @@
         line2 = `${line2}-${temp.replace(/\s+/g,"")}`;
       }
 
+      // Example line3: "AP-2 / BIN-1/5 | Next RT1" (or without Next)
       const donePart = `${tester} / ${step || "STEP"}`;
       const line3 = nextStep ? `${donePart} | Next ${nextStep}` : donePart;
 
